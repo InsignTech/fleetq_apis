@@ -2,7 +2,7 @@ import TripBooking from "../models/tripbookingSchema.js";
 import mongoose from "mongoose";
 import { STATUS, statusValues } from "../utils/constants/statusEnum.js";
 import { sendResponse } from "../utils/responseHandler.js";
-
+import User from '../models/userSchema.js'; 
 // Create a new trip booking
 export const createTripBooking = async (req, res, next) => {
   try {
@@ -49,7 +49,7 @@ export const getTripBookings = async (req, res, next) => {
       filter.status = req.query.status;
     }
 
-    const trips = await TripBooking.find(filter).sort({ date: -1 });
+    const trips = await TripBooking.find(filter).sort({ date: 1 });
 
     return sendResponse(res, 200, "Trip bookings fetched successfully", trips);
   } catch (err) {
@@ -123,6 +123,39 @@ export const updateTripBooking = async (req, res, next) => {
   }
 };
 
+
+export const getBookingsByMobileNumber = async (req, res, next) => {
+  try {
+    const { mobileNumber, status } = req.query;
+
+    if (!mobileNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "mobileNumber query parameter is required",
+      });
+    }
+
+    // Find user by mobile number
+    const user = await User.findOne({ phoneNumber: mobileNumber });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found with given mobile number",
+      });
+    }
+
+    const filter = { companyId: user.companyId };
+    if (status) {
+      filter.status = status;
+    }
+
+    const trips = await TripBooking.find(filter).sort({ date: 1 });
+
+    return sendResponse(res, 200, "Trip bookings fetched successfully", trips);
+  } catch (err) {
+    next(err);
+  }
+};
 
 // Delete trip booking
 // export const deleteTripBooking = async (req, res, next) => {

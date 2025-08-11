@@ -1,42 +1,50 @@
 import TruckBooking from "../models/truckBookingSchema.js";
 import mongoose from "mongoose";
-import { sendResponse } from "../utils/responseHandler.js"; 
+import { sendResponse } from "../utils/responseHandler.js";
 import { STATUS } from "../utils/constants/statusEnum.js";
+import User from "../models/userSchema.js";
+import Truck from "../models/truckSchema.js";
 
 // Create Truck Booking
 export const createTruckBooking = async (req, res, next) => {
   try {
-    const {
-      companyId,
-      truckId,
-      date,
-      contactName,
-      contactNumber,
-      remarks,
-    } = req.body;
+    const { companyId, truckId, date, contactName, contactNumber, remarks } =
+      req.body;
 
     // Validate required fields
-    if (
-      !companyId ||
-      !truckId ||
-      !contactName ||
-      !contactNumber
-    ) {
+    if (!companyId || !truckId || !contactName || !contactNumber) {
       return next({ statusCode: 400, message: "Missing required fields" });
+    }
+
+    const existingBooking = await TruckBooking.findOne({
+      truckId,
+      status: STATUS.INQUEUE,
+    });
+
+    if (existingBooking) {
+      return next({
+        statusCode: 400,
+        message: "Truck already has a booking in INQUEUE status",
+      });
     }
 
     const booking = await TruckBooking.create({
       companyId,
       truckId,
       date: date ? new Date(date) : new Date(),
-      status:STATUS.INQUEUE,
+      status: STATUS.INQUEUE,
       contactName,
       contactNumber,
       remarks,
       createdUserId: req.user._id,
     });
 
-    return sendResponse(res, 201, "Truck booking created successfully", booking);
+    return sendResponse(
+      res,
+      201,
+      "Truck booking created successfully",
+      booking
+    );
   } catch (err) {
     next(err);
   }
@@ -47,16 +55,24 @@ export const getTruckBookings = async (req, res, next) => {
   try {
     const filter = {};
 
-    if (req.query.companyId && mongoose.Types.ObjectId.isValid(req.query.companyId)) {
+    if (
+      req.query.companyId &&
+      mongoose.Types.ObjectId.isValid(req.query.companyId)
+    ) {
       filter.companyId = req.query.companyId;
     }
     if (req.query.status) {
       filter.status = req.query.status;
     }
 
-    const bookings = await TruckBooking.find(filter).sort({ date: -1 });
+    const bookings = await TruckBooking.find(filter).sort({ date: 1 });
 
-    return sendResponse(res, 200, "Truck bookings fetched successfully", bookings);
+    return sendResponse(
+      res,
+      200,
+      "Truck bookings fetched successfully",
+      bookings
+    );
   } catch (err) {
     next(err);
   }
@@ -71,7 +87,12 @@ export const getTruckBookingById = async (req, res, next) => {
       return next({ statusCode: 404, message: "Truck booking not found" });
     }
 
-    return sendResponse(res, 200, "Truck booking fetched successfully", booking);
+    return sendResponse(
+      res,
+      200,
+      "Truck booking fetched successfully",
+      booking
+    );
   } catch (err) {
     next(err);
   }
@@ -104,21 +125,90 @@ export const updateTruckBooking = async (req, res, next) => {
       updateData.cancelledUserId = req.user._id;
     }
 
-    const updatedBooking = await TruckBooking.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    });
+    const updatedBooking = await TruckBooking.findByIdAndUpdate(
+      id,
+      updateData,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
     if (!updatedBooking) {
       return next({ statusCode: 404, message: "Truck booking not found" });
     }
 
-    return sendResponse(res, 200, "Truck booking updated successfully", updatedBooking);
+    return sendResponse(
+      res,
+      200,
+      "Truck booking updated successfully",
+      updatedBooking
+    );
   } catch (err) {
     next(err);
   }
 };
 
+export const getTruckBookingByMobileNumber = async (req, res, next) => {
+  try {
+    const { mobileNumber, status } = req.query;
+
+    if (!mobileNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "mobile Number query parameter is required",
+      });
+    }
+
+    // Find user by mobile number
+    const user = await User.findOne({ phoneNumber: mobileNumber });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found with given mobile number",
+      });
+    }
+
+    const filter = { companyId: user.companyId };
+    if (status) {
+      filter.status = status;
+    }
+
+    const trucks = await TruckBooking.find(filter).sort({ date: 1 });
+
+    return sendResponse(
+      res,
+      200,
+      "Truck bookings fetched successfully",
+      trucks
+    );
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getAvailableTrucks = async (req, res, next) => {
+  try {
+    // Find all truckIds currently in INQUEUE status
+    const bookedTrucks = await TruckBooking.find({
+      status: STATUS.INQUEUE,
+    }).distinct("truckId");
+
+    // Find trucks NOT in that list (available trucks)
+    const availableTrucks = await Truck.find({
+      _id: { $nin: bookedTrucks },
+    });
+
+    return sendResponse(
+      res,
+      200,
+      "Available trucks fetched successfully",
+      availableTrucks
+    );
+  } catch (err) {
+    next(err);
+  }
+};
 // Delete Truck Booking
 // export const deleteTruckBooking = async (req, res, next) => {
 //   try {

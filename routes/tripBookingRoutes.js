@@ -4,6 +4,7 @@ import {
   getTripBookings,
   getTripBookingById,
   updateTripBooking,
+  getBookingsByMobileNumber,
   // deleteTripBooking, // Uncomment if you want delete
 } from '../controller/tripbookingController.js';
 
@@ -23,6 +24,7 @@ router.get('/:id', protect, getTripBookingById);
 // Update trip booking by ID
 router.put('/:id', protect, updateTripBooking);
 
+router.get('/by-mobile-number', getBookingsByMobileNumber);
 // Uncomment if you want to enable deletion
 // router.delete('/:id', protect, deleteTripBooking);
 
