@@ -1,10 +1,25 @@
 import express from 'express';
-import { userSignup,userLogin,updateDetails } from '../controller/userController.js';
-import protect from '../middleWare/userMiddleWare.js'
-const app = express.Router()
+import { 
+  userSignup, 
+  updateDetails, 
+  adminLogin, 
+  userVerify
+} from '../controller/userController.js';
+import protect from '../middleWare/userMiddleWare.js';
 
-app.route('/').post(userSignup)
-app.route('/login').post(userLogin)
-app.route("/:id").put(protect,updateDetails)
+const router = express.Router();
 
-export default app
+// =========================
+// ADMIN ROUTES
+// =========================
+router.post('/admin/login', adminLogin);         // Admin login
+router.post('/', protect, userSignup);           // Only logged-in admins can create users
+
+// =========================
+// USER ROUTES
+// =========================
+router.post('/verify', userVerify);                // Regular user login
+router.put('/:id', protect, updateDetails);      // Update user details (auth required)
+
+
+export default router;

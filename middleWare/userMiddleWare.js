@@ -1,5 +1,5 @@
 import AsyncHandler from 'express-async-handler'
-import User from '../modals/userSchema.js'
+import User from '../models/userSchema.js'
 import jwt from 'jsonwebtoken'
 
 const protect = AsyncHandler(async (req, res, next) => {
@@ -9,8 +9,9 @@ const protect = AsyncHandler(async (req, res, next) => {
     let isUser = await User.findOne({ _id : decoded.id })
     if ( !isUser ) {
       res.status(401).json({ msg: 'No user found..' })
-      throw new Error('Not Autherized')
+      throw new Error('Not Authorized')
     } else {
+      req.user = isUser;
       next();
     }
 
