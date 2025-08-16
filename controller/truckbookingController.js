@@ -212,58 +212,85 @@ export const getAvailableTrucks = async (req, res, next) => {
   }
 };
 
-
 export const pushAvailableTrucks = async (req, res, next) => {
   try {
-     const { type, phoneNumber } = req.body;
+    const { type, phoneNumber } = req.body;
 
+    console.log("🚀 pushAvailableTrucks started");
+    console.log("📥 Request body:", req.body);
+
+    // Validation
     if (!type) {
-      return sendResponse(res, 200, "Truck type is required",{isTruckAvailable:false});
+      console.log("⚠️ Truck type missing");
+      return sendResponse(res, 200, "Truck type is required", { isTruckAvailable: false });
     }
     if (!phoneNumber) {
-      return sendResponse(res, 200, "Phone number is required",{isTruckAvailable:false});
+      console.log("⚠️ Phone number missing");
+      return sendResponse(res, 200, "Phone number is required", { isTruckAvailable: false });
     }
-   
+
+    // Step 1: Find booked trucks
+    console.log("🔎 Fetching booked trucks...");
     const bookedTrucks = await TruckBooking.find({
       status: STATUS.INQUEUE,
     }).distinct("truckId");
+    console.log("📌 Booked truck IDs:", bookedTrucks);
 
+    // Step 2: Find available trucks
+    console.log(`🔎 Fetching available trucks of type '${type}' excluding booked ones...`);
     const availableTrucks = await Truck.find({
       _id: { $nin: bookedTrucks },
       type: type,
     }).limit(5);
 
+    console.log("📌 Available trucks:", availableTrucks.map(t => t.registrationNumber));
+
     if (!availableTrucks.length) {
-      return sendResponse(res, 200, "No trucks available right now", {isTruckAvailable:false});
+      console.log("❌ No trucks available");
+      return sendResponse(res, 200, "No trucks available right now", { isTruckAvailable: false });
     }
 
+    // Step 3: Prepare WhatsApp API call
     const apiUrl =
       "https://api.connectpanels.com/whatsapp-api/v1.0/customer/119041/bot/721911d2181a49af/template";
 
+    console.log("🌐 API URL:", apiUrl);
+
     const results = [];
+
     for (const truck of availableTrucks) {
-      if(!truck.registrationNumber){
-        continue
+      if (!truck.registrationNumber) {
+        console.log(`⚠️ Skipping truck with ID ${truck._id} because registrationNumber is missing`);
+        continue;
       }
+
+      // Build payload
       const payload = buildTruckBookingListPayload(
         truck.registrationNumber,
         phoneNumber,
         truck._id
       );
+      console.log("📤 Payload built for truck:", truck.registrationNumber, payload);
+
+      // API call
       try {
+        console.log(`📡 Sending WhatsApp message for truck ${truck.registrationNumber}...`);
         const response = await axios.post(apiUrl, payload, {
           headers: {
             "Content-Type": "application/json",
             Authorization: "Basic e0c18806-0a56-4479-bdb7-995caa70793c-Ic2oMya",
           },
         });
-        console.log(payload)
+
+        console.log(`✅ Message sent for truck ${truck.registrationNumber}`, response.data);
+
         results.push({
           truck: truck.registrationNumber,
           status: "sent",
           response: response.data,
         });
       } catch (error) {
+        console.error(`❌ Failed to send message for truck ${truck.registrationNumber}`, error.message);
         results.push({
           truck: truck.registrationNumber,
           status: "failed",
@@ -271,16 +298,19 @@ export const pushAvailableTrucks = async (req, res, next) => {
         });
       }
     }
-    console.log(results)
 
+    console.log("📊 Final results:", results);
+
+    // Step 4: Send response
     return sendResponse(
       res,
       200,
       "Available trucks pushed successfully",
-      {isTruckAvailable:true}
+      { isTruckAvailable: true }
     );
   } catch (err) {
-      return sendResponse(res, 200, "Error Occured", {isTruckAvailable:false});
+    console.error("🔥 Error in pushAvailableTrucks:", err);
+    return sendResponse(res, 200, "Error Occurred", { isTruckAvailable: false });
   }
 };
 
