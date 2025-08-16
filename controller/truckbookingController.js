@@ -4,6 +4,8 @@ import { sendResponse } from "../utils/responseHandler.js";
 import { STATUS } from "../utils/constants/statusEnum.js";
 import User from "../models/userSchema.js";
 import Truck from "../models/truckSchema.js";
+import axios from "axios";
+import { buildTruckBookingListPayload } from "../flows/buildTruckBookingListPayload.js";
 
 // Create Truck Booking
 export const createTruckBooking = async (req, res, next) => {
@@ -209,6 +211,78 @@ export const getAvailableTrucks = async (req, res, next) => {
     next(err);
   }
 };
+
+
+export const pushAvailableTrucks = async (req, res, next) => {
+  try {
+     const { type, phoneNumber } = req.body;
+
+    if (!type) {
+      return sendResponse(res, 200, "Truck type is required",{isTruckAvailable:false});
+    }
+    if (!phoneNumber) {
+      return sendResponse(res, 200, "Phone number is required",{isTruckAvailable:false});
+    }
+   
+    const bookedTrucks = await TruckBooking.find({
+      status: STATUS.INQUEUE,
+    }).distinct("truckId");
+
+    const availableTrucks = await Truck.find({
+      _id: { $nin: bookedTrucks },
+      type: type,
+    }).limit(5);
+
+    if (!availableTrucks.length) {
+      return sendResponse(res, 200, "No trucks available right now", {isTruckAvailable:false});
+    }
+
+    const apiUrl =
+      "https://api.connectpanels.com/whatsapp-api/v1.0/customer/119041/bot/721911d2181a49af/template";
+
+    const results = [];
+    for (const truck of availableTrucks) {
+      if(!truck.registrationNumber){
+        continue
+      }
+      const payload = buildTruckBookingListPayload(
+        truck.registrationNumber,
+        phoneNumber
+      );
+      try {
+        const response = await axios.post(apiUrl, payload, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Basic e0c18806-0a56-4479-bdb7-995caa70793c-Ic2oMya",
+          },
+        });
+        console.log(payload)
+        results.push({
+          truck: truck.registrationNumber,
+          status: "sent",
+          response: response.data,
+        });
+      } catch (error) {
+        results.push({
+          truck: truck.registrationNumber,
+          status: "failed",
+          error: error.message,
+        });
+      }
+    }
+    console.log(results)
+
+    return sendResponse(
+      res,
+      200,
+      "Available trucks pushed successfully",
+      {isTruckAvailable:true}
+    );
+  } catch (err) {
+      return sendResponse(res, 200, "Error Occured", {isTruckAvailable:false});
+  }
+};
+
 // Delete Truck Booking
 // export const deleteTruckBooking = async (req, res, next) => {
 //   try {

@@ -6,6 +6,7 @@ import {
   updateTruckBooking,
   getTruckBookingByMobileNumber,
   getAvailableTrucks,
+  pushAvailableTrucks,
   // deleteTruckBooking, // uncomment if you want delete route
 } from '../controller/truckbookingController.js';
 
@@ -22,15 +23,18 @@ router.post('/', createTruckBooking);
 // Get all truck bookings (with optional filters)
 router.get('/', getTruckBookings);
 
-// Get truck booking by ID
-router.get('/:id', getTruckBookingById);
 
 // Update truck booking by ID
-router.put('/:id', updateTruckBooking);
 
 router.get('/by-mobile-number', getTruckBookingByMobileNumber);
 
 router.get('/available-trucks', getAvailableTrucks);
+
+router.get('/push-available-trucks', pushAvailableTrucks);
+
+router.put('/:id', updateTruckBooking);
+// Get truck booking by ID
+router.get('/:id', getTruckBookingById);
 // Delete truck booking by ID (if needed)
 // router.delete('/:id', deleteTruckBooking);
 
