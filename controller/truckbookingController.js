@@ -247,7 +247,8 @@ export const pushAvailableTrucks = async (req, res, next) => {
       }
       const payload = buildTruckBookingListPayload(
         truck.registrationNumber,
-        phoneNumber
+        phoneNumber,
+        truck._id
       );
       try {
         const response = await axios.post(apiUrl, payload, {

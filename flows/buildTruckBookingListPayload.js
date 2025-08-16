@@ -1,4 +1,4 @@
-export function buildTruckBookingListPayload(truckNumber, phoneNumber) {
+export function buildTruckBookingListPayload(truckNumber, phoneNumber,truckId) {
   return {
     payload: {
       name: "available_trucks",
@@ -16,7 +16,7 @@ export function buildTruckBookingListPayload(truckNumber, phoneNumber) {
           index: 0,
           parameters: [
             {
-              payload: `flow_4360136BA7F84081869DEEEE0D3722B2||data_truck_number=${truckNumber}`, 
+              payload: `flow_4360136BA7F84081869DEEEE0D3722B2||data_truck_id=${truckId}`, 
               type: "payload",
             },
           ],
