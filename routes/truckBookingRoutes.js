@@ -15,7 +15,7 @@ import protect from '../middleWare/userMiddleWare.js'; // assuming you have auth
 const router = express.Router();
 
 // Protect all routes below - only authenticated users can access
-router.use(protect);
+// router.use(protect);
 
 // Create truck booking
 router.post('/', createTruckBooking);
