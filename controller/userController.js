@@ -86,8 +86,9 @@ const userVerifyWithCompanyType = async (req, res, next) => {
   try {
     if (!phoneNumber) {
       const error = new Error("Phone number is required");
-      error.statusCode = 400;
-      return next(error);
+        return sendResponse(res, 200, "Error Occured", {
+      isValid:false
+    });
     }
 
     // Find user and populate companyId
@@ -96,8 +97,9 @@ const userVerifyWithCompanyType = async (req, res, next) => {
 
     if (!existUser) {
       const error = new Error("User not found with this phone number and role");
-      error.statusCode = 400;
-      return next(error);
+        return sendResponse(res, 200, "Error Occured", {
+      isValid:false
+    });
     }
 
     // Convert mongoose doc to plain object
@@ -117,9 +119,13 @@ const userVerifyWithCompanyType = async (req, res, next) => {
     return sendResponse(res, 200, "Login success", {
       token: generateToken(existUser._id),
       user: responseUser,
+       isValid: true
     });
   } catch (err) {
-    return next(err);
+    return sendResponse(res, 200, "Error Occured", {
+      isValid:false
+    });
+    // return next(err);
   }
 };
 
