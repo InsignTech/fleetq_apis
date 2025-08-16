@@ -3,7 +3,8 @@ import {
   userSignup, 
   updateDetails, 
   adminLogin, 
-  userVerify
+  userVerify,
+  userVerifyWithCompanyType
 } from '../controller/userController.js';
 import protect from '../middleWare/userMiddleWare.js';
 
@@ -18,7 +19,8 @@ router.post('/', protect, userSignup);           // Only logged-in admins can cr
 // =========================
 // USER ROUTES
 // =========================
-router.post('/verify', userVerify);                // Regular user login
+router.post('/verify', userVerify);    
+router.post('/validate-user', userVerifyWithCompanyType);               // Regular user login
 router.put('/:id', protect, updateDetails);      // Update user details (auth required)
 
 

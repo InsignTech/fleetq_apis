@@ -79,6 +79,50 @@ const userVerify = async (req, res, next) => {
   }
 };
 
+
+const userVerifyWithCompanyType = async (req, res, next) => {
+  const { phoneNumber } = req.body;
+
+  try {
+    if (!phoneNumber) {
+      const error = new Error("Phone number is required");
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    // Find user and populate companyId
+    const existUser = await User.findOne({ phoneNumber })
+      .populate("companyId", "type"); 
+
+    if (!existUser) {
+      const error = new Error("User not found with this phone number and role");
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    // Convert mongoose doc to plain object
+    const userObj = existUser.toObject();
+
+    // Attach companyType directly in response user object
+    const responseUser = {
+      _id: userObj._id,
+      userName: userObj.userName,
+      phoneNumber: userObj.phoneNumber,
+      email: userObj.email,
+      role: userObj.role,
+      companyId: userObj.companyId?._id || null,
+      type: userObj.companyId?.type || null,
+    };
+
+    return sendResponse(res, 200, "Login success", {
+      token: generateToken(existUser._id),
+      user: responseUser,
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
 // =========================
 // ADMIN LOGIN
 // =========================
@@ -153,4 +197,4 @@ const updateDetails = async (req, res, next) => {
   }
 };
 
-export { userSignup, userVerify, updateDetails, adminLogin };
+export { userSignup, userVerify, updateDetails, adminLogin, userVerifyWithCompanyType };
