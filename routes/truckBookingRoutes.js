@@ -19,7 +19,7 @@ const router = express.Router();
 // router.use(protect);
 
 // Create truck booking
-router.post('/', createTruckBooking);
+router.post('/',protect, createTruckBooking);
 
 // Get all truck bookings (with optional filters)
 router.get('/', getTruckBookings);

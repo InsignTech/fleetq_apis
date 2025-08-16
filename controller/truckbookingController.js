@@ -10,6 +10,7 @@ import { getCompanyByPhoneNumber } from "./userController.js";
 
 // Create Truck Booking
 export const createTruckBooking = async (req, res, next) => {
+
   try {
     const { companyId, truckId, date, contactName, contactNumber, remarks } =
       req.body;
@@ -39,7 +40,7 @@ export const createTruckBooking = async (req, res, next) => {
       contactName,
       contactNumber,
       remarks,
-      createdUserId: req.user._id,
+      createdUserId: req?.user?._id || null,
     });
 
     return sendResponse(
@@ -49,6 +50,7 @@ export const createTruckBooking = async (req, res, next) => {
       booking
     );
   } catch (err) {
+    console.log(err)
     next(err);
   }
 };
