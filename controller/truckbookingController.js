@@ -6,6 +6,7 @@ import User from "../models/userSchema.js";
 import Truck from "../models/truckSchema.js";
 import axios from "axios";
 import { buildTruckBookingListPayload } from "../flows/buildTruckBookingListPayload.js";
+import { getCompanyByPhoneNumber } from "./userController.js";
 
 // Create Truck Booking
 export const createTruckBooking = async (req, res, next) => {
@@ -216,35 +217,33 @@ export const pushAvailableTrucks = async (req, res, next) => {
   try {
       const { phoneNumber, containerSize } = req.body || {};
 
-      console.log(req.body)
-    console.log("🚀 pushAvailableTrucks started");
-    console.log("📥 Request body:", req.body);
 
     // Validation
     if (!containerSize) {
-      console.log("⚠️ Truck type missing");
       return sendResponse(res, 200, "Truck type is required", { isTruckAvailable: false });
     }
     if (!phoneNumber) {
-      console.log("⚠️ Phone number missing");
       return sendResponse(res, 200, "Phone number is required", { isTruckAvailable: false });
     }
 
+      const companyInfo = await getCompanyByPhoneNumber(phoneNumber);
+    if (!companyInfo.isValid || !companyInfo.companyId) {
+      return sendResponse(res, 200, "No company found for this phone number", { isTruckAvailable: false });
+    }
+    
     // Step 1: Find booked trucks
-    console.log("🔎 Fetching booked trucks...");
     const bookedTrucks = await TruckBooking.find({
       status: STATUS.INQUEUE,
     }).distinct("truckId");
-    console.log("📌 Booked truck IDs:", bookedTrucks);
 
     // Step 2: Find available trucks
-    console.log(`🔎 Fetching available trucks of type '${containerSize}' excluding booked ones...`);
-    const availableTrucks = await Truck.find({
+   const availableTrucks = await Truck.find({
       _id: { $nin: bookedTrucks },
       type: containerSize,
+      companyId: companyInfo.companyId,  
     }).limit(5);
 
-    console.log("📌 Available trucks:", availableTrucks.map(t => t.registrationNumber));
+
 
     if (!availableTrucks.length) {
       console.log("❌ No trucks available");
@@ -255,7 +254,7 @@ export const pushAvailableTrucks = async (req, res, next) => {
     const apiUrl =
       "https://api.connectpanels.com/whatsapp-api/v1.0/customer/119041/bot/721911d2181a49af/template";
 
-    console.log("🌐 API URL:", apiUrl);
+
 
     const results = [];
 
@@ -271,7 +270,6 @@ export const pushAvailableTrucks = async (req, res, next) => {
         phoneNumber,
         truck._id
       );
-      console.log("📤 Payload built for truck:", truck.registrationNumber, payload);
 
       // API call
       try {
@@ -314,6 +312,86 @@ export const pushAvailableTrucks = async (req, res, next) => {
     return sendResponse(res, 200, "Error Occurred", { isTruckAvailable: false });
   }
 };
+
+
+
+export const SearchAndpushAvailableTrucks = async (req, res, next) => {
+  try {
+    console.log("hii")
+    console.log("req.body----------------------------------------------------")
+    console.log(req.body)
+    const { phoneNumber, containerSize, truckNumber } = req.body || {};
+
+    // Validation
+    if (!containerSize) {
+      return sendResponse(res, 200, "Truck type is required", { isTruckAvailable: false });
+    }
+    if (!phoneNumber) {
+      return sendResponse(res, 200, "Phone number is required", { isTruckAvailable: false });
+    }
+    if (!truckNumber) {
+      return sendResponse(res, 200, "Truck number is required", { isTruckAvailable: false });
+    }
+
+    // ✅ Get company details
+    const companyInfo = await getCompanyByPhoneNumber(phoneNumber);
+    if (!companyInfo.isValid || !companyInfo.companyId) {
+      return sendResponse(res, 200, "No company found for this phone number", { isTruckAvailable: false });
+    }
+
+    // ✅ Find booked trucks
+    const bookedTrucks = await TruckBooking.find({
+      status: STATUS.INQUEUE,
+    }).distinct("truckId");
+
+    // ✅ Find truck by number, type, and company
+    const truck = await Truck.findOne({
+      _id: { $nin: bookedTrucks },
+      type: containerSize,
+      companyId: companyInfo.companyId,
+      registrationNumber: { $regex: `^${truckNumber}$`, $options: "i" },
+    });
+
+    if (!truck) {
+      return sendResponse(res, 200, "No matching truck available", { isTruckAvailable: false });
+    }
+
+    const apiUrl =
+      "https://api.connectpanels.com/whatsapp-api/v1.0/customer/119041/bot/721911d2181a49af/template";
+
+
+       const payload = buildTruckBookingListPayload(
+        truck.registrationNumber,
+        phoneNumber,
+        truck._id
+      );
+
+      // API call
+
+        console.log(`📡 Sending WhatsApp message for truck ${truck.registrationNumber}...`);
+        const response = await axios.post(apiUrl, payload, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Basic e0c18806-0a56-4479-bdb7-995caa70793c-Ic2oMya",
+          },
+        });
+
+    return sendResponse(res, 200, "Truck available", {
+      isTruckAvailable: true,
+      truck: {
+        id: truck._id,
+        registrationNumber: truck.registrationNumber,
+        type: truck.type,
+      },
+    });
+
+  } catch (err) {
+    console.error("🔥 Error in SearchAvailableTrucks:", err);
+    return sendResponse(res, 200, "Error Occurred", { isTruckAvailable: false });
+  }
+};
+
+
 
 // Delete Truck Booking
 // export const deleteTruckBooking = async (req, res, next) => {

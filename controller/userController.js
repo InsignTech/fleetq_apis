@@ -203,4 +203,24 @@ const updateDetails = async (req, res, next) => {
   }
 };
 
-export { userSignup, userVerify, updateDetails, adminLogin, userVerifyWithCompanyType };
+const getCompanyByPhoneNumber = async (phoneNumber) => {
+  if (!phoneNumber) {
+    return { isValid: false, message: "Phone number is required" };
+  }
+
+  const user = await User.findOne({ phoneNumber }).populate("companyId", "type");
+
+  if (!user) {
+    return { isValid: false, message: "User not found", companyId: null };
+  }
+
+  return {
+    isValid: true,
+    companyId: user.companyId?._id || null,
+    type: user.companyId?.type || null,
+  };
+};
+
+
+
+export { userSignup, userVerify, updateDetails, adminLogin, userVerifyWithCompanyType,getCompanyByPhoneNumber };
