@@ -13,6 +13,7 @@ import errorHandler from "./middleWare/errorHandler.js";
 const app = express();
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 5000;
 app.get("/", (req, res) => {

@@ -214,7 +214,7 @@ export const getAvailableTrucks = async (req, res, next) => {
 
 export const pushAvailableTrucks = async (req, res, next) => {
   try {
-    const { containerSize, phoneNumber } = req.body;
+      const { phoneNumber, containerSize } = req.body || {};
 
     console.log("🚀 pushAvailableTrucks started");
     console.log("📥 Request body:", req.body);
