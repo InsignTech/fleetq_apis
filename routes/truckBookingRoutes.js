@@ -30,7 +30,7 @@ router.get('/by-mobile-number', getTruckBookingByMobileNumber);
 
 router.get('/available-trucks', getAvailableTrucks);
 
-router.get('/push-available-trucks', pushAvailableTrucks);
+router.post('/push-available-trucks', pushAvailableTrucks);
 
 router.put('/:id', updateTruckBooking);
 // Get truck booking by ID
