@@ -214,13 +214,13 @@ export const getAvailableTrucks = async (req, res, next) => {
 
 export const pushAvailableTrucks = async (req, res, next) => {
   try {
-    const { type, phoneNumber } = req.body;
+    const { containerSize, phoneNumber } = req.body;
 
     console.log("🚀 pushAvailableTrucks started");
     console.log("📥 Request body:", req.body);
 
     // Validation
-    if (!type) {
+    if (!containerSize) {
       console.log("⚠️ Truck type missing");
       return sendResponse(res, 200, "Truck type is required", { isTruckAvailable: false });
     }
@@ -237,10 +237,10 @@ export const pushAvailableTrucks = async (req, res, next) => {
     console.log("📌 Booked truck IDs:", bookedTrucks);
 
     // Step 2: Find available trucks
-    console.log(`🔎 Fetching available trucks of type '${type}' excluding booked ones...`);
+    console.log(`🔎 Fetching available trucks of type '${containerSize}' excluding booked ones...`);
     const availableTrucks = await Truck.find({
       _id: { $nin: bookedTrucks },
-      type: type,
+      type: containerSize,
     }).limit(5);
 
     console.log("📌 Available trucks:", availableTrucks.map(t => t.registrationNumber));
