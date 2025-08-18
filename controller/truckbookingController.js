@@ -10,26 +10,36 @@ import { getCompanyByPhoneNumber } from "./userController.js";
 
 // Create Truck Booking
 export const createTruckBooking = async (req, res, next) => {
-
   try {
     const { companyId, truckId, date, contactName, contactNumber, remarks } =
       req.body;
 
     // Validate required fields
     if (!companyId || !truckId || !contactName || !contactNumber) {
-      return next({ statusCode: 400, message: "Missing required fields" });
+      return sendResponse(res, 201, "Missing required fields", {
+        bookingStatus: false,
+      });
     }
 
+    const truckExist  = await Truck.findById(truckId)
+
+    if(!truckExist){
+      return sendResponse(res,201, "truck not Exist", {
+        bookingStatus:false
+      })
+    }
     const existingBooking = await TruckBooking.findOne({
       truckId,
       status: STATUS.INQUEUE,
     });
 
     if (existingBooking) {
-      return next({
-        statusCode: 400,
-        message: "Truck already has a booking in INQUEUE status",
-      });
+      return sendResponse(
+        res,
+        201,
+        "Truck already has a booking in INQUEUE status",
+        { bookingStatus: false }
+      );
     }
 
     const booking = await TruckBooking.create({
@@ -43,15 +53,35 @@ export const createTruckBooking = async (req, res, next) => {
       createdUserId: req?.user?._id || null,
     });
 
-    return sendResponse(
-      res,
-      201,
-      "Truck booking created successfully",
-      booking
-    );
+const inQueueBookings = await TruckBooking.aggregate([
+  {
+    $match: { status: STATUS.INQUEUE }
+  },
+  {
+    $lookup: {
+      from: "trucks", // 🚨 must match Mongo collection name
+      localField: "truckId",
+      foreignField: "_id",
+      as: "truck"
+    }
+  },
+  { $unwind: "$truck" },
+  { $match: { "truck.type": truckExist.type } },
+  { $sort: { createdAt: 1 } },
+  { $project: { _id: 1 } }
+]);
+
+const position =
+  inQueueBookings.findIndex((b) => b._id.toString() === booking._id.toString()) + 1;
+
+    return sendResponse(res, 201, "Truck booking created successfully", {
+      bookingStatus: true,
+      position: position,
+      truckBookingId: booking._id,
+    });
   } catch (err) {
-    console.log(err)
-    next(err);
+    console.log(err);
+    return sendResponse(res, 201, "Error Occured", { bookingStatus: false });
   }
 };
 
@@ -217,52 +247,57 @@ export const getAvailableTrucks = async (req, res, next) => {
 
 export const pushAvailableTrucks = async (req, res, next) => {
   try {
-      const { phoneNumber, containerSize } = req.body || {};
-
+    const { phoneNumber, containerSize } = req.body || {};
 
     // Validation
     if (!containerSize) {
-      return sendResponse(res, 200, "Truck type is required", { isTruckAvailable: false });
+      return sendResponse(res, 200, "Truck type is required", {
+        isTruckAvailable: false,
+      });
     }
     if (!phoneNumber) {
-      return sendResponse(res, 200, "Phone number is required", { isTruckAvailable: false });
+      return sendResponse(res, 200, "Phone number is required", {
+        isTruckAvailable: false,
+      });
     }
 
-      const companyInfo = await getCompanyByPhoneNumber(phoneNumber);
+    const companyInfo = await getCompanyByPhoneNumber(phoneNumber);
     if (!companyInfo.isValid || !companyInfo.companyId) {
-      return sendResponse(res, 200, "No company found for this phone number", { isTruckAvailable: false });
+      return sendResponse(res, 200, "No company found for this phone number", {
+        isTruckAvailable: false,
+      });
     }
-    
+
     // Step 1: Find booked trucks
     const bookedTrucks = await TruckBooking.find({
       status: STATUS.INQUEUE,
     }).distinct("truckId");
 
     // Step 2: Find available trucks
-   const availableTrucks = await Truck.find({
+    const availableTrucks = await Truck.find({
       _id: { $nin: bookedTrucks },
       type: containerSize,
-      companyId: companyInfo.companyId,  
+      companyId: companyInfo.companyId,
     }).limit(5);
-
-
 
     if (!availableTrucks.length) {
       console.log("❌ No trucks available");
-      return sendResponse(res, 200, "No trucks available right now", { isTruckAvailable: false });
+      return sendResponse(res, 200, "No trucks available right now", {
+        isTruckAvailable: false,
+      });
     }
 
     // Step 3: Prepare WhatsApp API call
     const apiUrl =
       "https://api.connectpanels.com/whatsapp-api/v1.0/customer/119041/bot/721911d2181a49af/template";
 
-
-
     const results = [];
 
     for (const truck of availableTrucks) {
       if (!truck.registrationNumber) {
-        console.log(`⚠️ Skipping truck with ID ${truck._id} because registrationNumber is missing`);
+        console.log(
+          `⚠️ Skipping truck with ID ${truck._id} because registrationNumber is missing`
+        );
         continue;
       }
 
@@ -275,7 +310,9 @@ export const pushAvailableTrucks = async (req, res, next) => {
 
       // API call
       try {
-        console.log(`📡 Sending WhatsApp message for truck ${truck.registrationNumber}...`);
+        console.log(
+          `📡 Sending WhatsApp message for truck ${truck.registrationNumber}...`
+        );
         const response = await axios.post(apiUrl, payload, {
           headers: {
             "Content-Type": "application/json",
@@ -283,7 +320,10 @@ export const pushAvailableTrucks = async (req, res, next) => {
           },
         });
 
-        console.log(`✅ Message sent for truck ${truck.registrationNumber}`, response.data);
+        console.log(
+          `✅ Message sent for truck ${truck.registrationNumber}`,
+          response.data
+        );
 
         results.push({
           truck: truck.registrationNumber,
@@ -291,7 +331,10 @@ export const pushAvailableTrucks = async (req, res, next) => {
           response: response.data,
         });
       } catch (error) {
-        console.error(`❌ Failed to send message for truck ${truck.registrationNumber}`, error.message);
+        console.error(
+          `❌ Failed to send message for truck ${truck.registrationNumber}`,
+          error.message
+        );
         results.push({
           truck: truck.registrationNumber,
           status: "failed",
@@ -303,42 +346,47 @@ export const pushAvailableTrucks = async (req, res, next) => {
     console.log("📊 Final results:", results);
 
     // Step 4: Send response
-    return sendResponse(
-      res,
-      200,
-      "Available trucks pushed successfully",
-      { isTruckAvailable: true }
-    );
+    return sendResponse(res, 200, "Available trucks pushed successfully", {
+      isTruckAvailable: true,
+    });
   } catch (err) {
     console.error("🔥 Error in pushAvailableTrucks:", err);
-    return sendResponse(res, 200, "Error Occurred", { isTruckAvailable: false });
+    return sendResponse(res, 200, "Error Occurred", {
+      isTruckAvailable: false,
+    });
   }
 };
 
-
-
 export const SearchAndpushAvailableTrucks = async (req, res, next) => {
   try {
-    console.log("hii")
-    console.log("req.body----------------------------------------------------")
-    console.log(req.body)
+    console.log("hii");
+    console.log("req.body----------------------------------------------------");
+    console.log(req.body);
     const { phoneNumber, containerSize, truckNumber } = req.body || {};
 
     // Validation
     if (!containerSize) {
-      return sendResponse(res, 200, "Truck type is required", { isTruckAvailable: false });
+      return sendResponse(res, 200, "Truck type is required", {
+        isTruckAvailable: false,
+      });
     }
     if (!phoneNumber) {
-      return sendResponse(res, 200, "Phone number is required", { isTruckAvailable: false });
+      return sendResponse(res, 200, "Phone number is required", {
+        isTruckAvailable: false,
+      });
     }
     if (!truckNumber) {
-      return sendResponse(res, 200, "Truck number is required", { isTruckAvailable: false });
+      return sendResponse(res, 200, "Truck number is required", {
+        isTruckAvailable: false,
+      });
     }
 
     // ✅ Get company details
     const companyInfo = await getCompanyByPhoneNumber(phoneNumber);
     if (!companyInfo.isValid || !companyInfo.companyId) {
-      return sendResponse(res, 200, "No company found for this phone number", { isTruckAvailable: false });
+      return sendResponse(res, 200, "No company found for this phone number", {
+        isTruckAvailable: false,
+      });
     }
 
     // ✅ Find booked trucks
@@ -355,28 +403,31 @@ export const SearchAndpushAvailableTrucks = async (req, res, next) => {
     });
 
     if (!truck) {
-      return sendResponse(res, 200, "No matching truck available", { isTruckAvailable: false });
+      return sendResponse(res, 200, "No matching truck available", {
+        isTruckAvailable: false,
+      });
     }
 
     const apiUrl =
       "https://api.connectpanels.com/whatsapp-api/v1.0/customer/119041/bot/721911d2181a49af/template";
 
+    const payload = buildTruckBookingListPayload(
+      truck.registrationNumber,
+      phoneNumber,
+      truck._id
+    );
 
-       const payload = buildTruckBookingListPayload(
-        truck.registrationNumber,
-        phoneNumber,
-        truck._id
-      );
+    // API call
 
-      // API call
-
-        console.log(`📡 Sending WhatsApp message for truck ${truck.registrationNumber}...`);
-        const response = await axios.post(apiUrl, payload, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Basic e0c18806-0a56-4479-bdb7-995caa70793c-Ic2oMya",
-          },
-        });
+    console.log(
+      `📡 Sending WhatsApp message for truck ${truck.registrationNumber}...`
+    );
+    const response = await axios.post(apiUrl, payload, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Basic e0c18806-0a56-4479-bdb7-995caa70793c-Ic2oMya",
+      },
+    });
 
     return sendResponse(res, 200, "Truck available", {
       isTruckAvailable: true,
@@ -386,13 +437,112 @@ export const SearchAndpushAvailableTrucks = async (req, res, next) => {
         type: truck.type,
       },
     });
-
   } catch (err) {
     console.error("🔥 Error in SearchAvailableTrucks:", err);
-    return sendResponse(res, 200, "Error Occurred", { isTruckAvailable: false });
+    return sendResponse(res, 200, "Error Occurred", {
+      isTruckAvailable: false,
+    });
   }
 };
 
+
+export const getLatestTruckBookingByPhoneAndReg = async (req, res, next) => {
+  try {
+    const { phoneNumber, registrationNumber } = req.body || {};
+
+    // ✅ Validation
+    if (!phoneNumber || !registrationNumber) {
+      return sendResponse(res, 200, "Phone number and registration number are required", {
+        bookingFound: false,
+      });
+    }
+
+    // ✅ Get company by phone number
+    const companyInfo = await getCompanyByPhoneNumber(phoneNumber);
+    if (!companyInfo.isValid || !companyInfo.companyId) {
+      return sendResponse(res, 200, "No company found for this phone number", {
+        bookingFound: false,
+      });
+    }
+
+    // ✅ Find truck belonging to company
+    const truck = await Truck.findOne({
+      companyId: companyInfo.companyId,
+      registrationNumber: { $regex: `^${registrationNumber}$`, $options: "i" },
+    });
+
+    if (!truck) {
+      return sendResponse(res, 200, "No truck found for this registration number", {
+        bookingFound: false,
+      });
+    }
+
+    // ✅ Find latest booking for this truck
+    const latestBooking = await TruckBooking.findOne({
+      truckId: truck._id,
+      status: { 
+        $in: [
+          STATUS.INQUEUE, 
+          STATUS.INPROGRESS, 
+          STATUS.ACCEPTED, 
+          STATUS.REJECTED, 
+          STATUS.ALLOCATED
+        ]
+      },
+    })
+    .sort({ createdAt: -1 })  // pick latest
+    .populate("companyId", "name") // optional: include company info
+    .populate("truckId", "registrationNumber type");
+
+    if (!latestBooking) {
+      return sendResponse(res, 200, "No booking found for this truck", {
+        bookingFound: false,
+      });
+    }
+
+    let position = null;
+
+    // ✅ If booking is INQUEUE → calculate position
+    if (latestBooking.status === STATUS.INQUEUE) {
+      const inQueueBookings = await TruckBooking.aggregate([
+        { $match: { status: STATUS.INQUEUE } },
+        {
+          $lookup: {
+            from: "trucks",
+            localField: "truckId",
+            foreignField: "_id",
+            as: "truck"
+          }
+        },
+        { $unwind: "$truck" },
+        { $match: { "truck.type": truck.type } }, // only same feet type
+        { $sort: { createdAt: 1 } },
+        { $project: { _id: 1 } }
+      ]);
+
+      position =
+        inQueueBookings.findIndex((b) => b._id.toString() === latestBooking._id.toString()) + 1;
+    }
+
+    // ✅ Success response
+    return sendResponse(res, 200, "Latest truck booking fetched successfully", {
+      bookingFound: true,
+      truck: {
+        id: truck._id,
+        registrationNumber: truck.registrationNumber,
+        type: truck.type,
+      },
+      bookingId: latestBooking._id,
+      position: position, // null unless INQUEUE
+    });
+
+  } catch (err) {
+    console.error("🔥 Error in getLatestTruckBookingByPhoneAndReg:", err);
+    return sendResponse(res, 200, "Error Occurred", {
+      bookingFound: false,
+    });
+  }
+};
 
 
 // Delete Truck Booking

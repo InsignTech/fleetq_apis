@@ -8,6 +8,7 @@ import {
   getAvailableTrucks,
   pushAvailableTrucks,
   SearchAndpushAvailableTrucks,
+  getLatestTruckBookingByPhoneAndReg,
   // deleteTruckBooking, // uncomment if you want delete route
 } from '../controller/truckbookingController.js';
 
@@ -41,4 +42,5 @@ router.get('/:id', getTruckBookingById);
 // Delete truck booking by ID (if needed)
 // router.delete('/:id', deleteTruckBooking);
 
+router.post('/status-by-trucknumber',getLatestTruckBookingByPhoneAndReg)
 export default router;
