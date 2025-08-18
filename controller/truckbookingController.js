@@ -533,6 +533,7 @@ export const getLatestTruckBookingByPhoneAndReg = async (req, res, next) => {
         type: truck.type,
       },
       bookingId: latestBooking._id,
+      status: latestBooking.status,
       position: position, // null unless INQUEUE
     });
 
