@@ -17,9 +17,9 @@ const allocationSchema = new Schema(
     },
     status: {
       type: String,
-      enum: [STATUS.ALLOCATED, STATUS.CANCELLED],
+      enum: [STATUS.INPROGRESS,STATUS.ALLOCATED, STATUS.CANCELLED],
       required: true,
-      default: STATUS.ALLOCATED,
+      default: STATUS.INPROGRESS,
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

@@ -43,6 +43,19 @@ const tripBookingSchema = new Schema(
       required: true,
       min: 0,
     },
+      contactName: {
+      type: String,
+      trim: true,
+      minlength: 2,
+      maxlength: 100,
+      required: true,
+    },
+    contactNumber: {
+      type: String,
+      trim: true,
+      required: true,
+      // You can add validation pattern for phone numbers here if needed
+    },
     createdUserId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

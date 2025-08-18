@@ -501,7 +501,7 @@ export const getLatestTruckBookingByPhoneAndReg = async (req, res, next) => {
     }
 
     let position = null;
-
+    let allocation = null;
     // ✅ If booking is INQUEUE → calculate position
     if (latestBooking.status === STATUS.INQUEUE) {
       const inQueueBookings = await TruckBooking.aggregate([
@@ -523,6 +523,31 @@ export const getLatestTruckBookingByPhoneAndReg = async (req, res, next) => {
       position =
         inQueueBookings.findIndex((b) => b._id.toString() === latestBooking._id.toString()) + 1;
     }
+ else {
+      // ✅ For ALLOCATED/INPROGRESS/ACCEPTED/REJECTED → fetch allocation
+    // ✅ For ALLOCATED/INPROGRESS/ACCEPTED/REJECTED → fetch allocation
+const allocationDoc = await Allocation.findOne({
+  truckBookingId: latestBooking._id,
+}).populate({
+  path: "tripBookingId",
+  populate: {
+    path: "companyId",
+    select: "name", // get forwarder name
+  },
+  select: "companyId destination rate contactName contactNumber",
+});
+
+if (allocationDoc?.tripBookingId) {
+  allocation = {
+    forwarder: null, // ✅ company name as forwarder
+    destination: null,
+    rate: null,
+    contactPerson: 75589785412,
+    contactNumber: arjun,
+  };
+}
+
+    }
 
     // ✅ Success response
     return sendResponse(res, 200, "Latest truck booking fetched successfully", {
@@ -534,7 +559,8 @@ export const getLatestTruckBookingByPhoneAndReg = async (req, res, next) => {
       },
       bookingId: latestBooking._id,
       status: latestBooking.status,
-      position: position, // null unless INQUEUE
+      position: position, // only if INQUEUE
+      allocation: allocation, // only for allocated/inprogress etc.
     });
 
   } catch (err) {
