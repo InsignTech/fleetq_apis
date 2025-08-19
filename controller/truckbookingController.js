@@ -8,6 +8,8 @@ import axios from "axios";
 import { buildTruckBookingListPayload } from "../flows/buildTruckBookingListPayload.js";
 import { getCompanyByPhoneNumber } from "./userController.js";
 import Allocation from "../models/allocationSchema.js";
+import TripBooking from "../models/tripbookingSchema.js";
+
 // Create Truck Booking
 export const createTruckBooking = async (req, res, next) => {
   try {
@@ -550,10 +552,10 @@ export const getLatestTruckBookingByPhoneAndReg = async (req, res, next) => {
       });
 
       const allocatedOnIST = allocationDoc?.allocatedOn
-  ? new Date(allocationDoc.allocatedOn).toLocaleString("en-IN", {
-      timeZone: "Asia/Kolkata",
-    })
-  : null;
+        ? new Date(allocationDoc.allocatedOn).toLocaleString("en-IN", {
+            timeZone: "Asia/Kolkata",
+          })
+        : null;
 
       if (allocationDoc?.tripBookingId) {
         const trip = allocationDoc.tripBookingId;
@@ -568,11 +570,11 @@ export const getLatestTruckBookingByPhoneAndReg = async (req, res, next) => {
       }
     }
 
-     const bookingDateIST = latestBooking?.date
-  ? new Date(latestBooking.date).toLocaleString("en-IN", {
-      timeZone: "Asia/Kolkata",
-    })
-  : null;
+    const bookingDateIST = latestBooking?.date
+      ? new Date(latestBooking.date).toLocaleString("en-IN", {
+          timeZone: "Asia/Kolkata",
+        })
+      : null;
     return sendResponse(res, 200, "Latest truck booking fetched successfully", {
       bookingFound: true,
       truck: {
@@ -594,6 +596,118 @@ export const getLatestTruckBookingByPhoneAndReg = async (req, res, next) => {
   }
 };
 
+export const cancelTruckBooking = async (req, res, next) => {
+  try {
+    const { truckBookingId, phoneNumber, remarks } = req.body;
+
+    // ✅ Validation
+    if (!truckBookingId) {
+      return sendResponse(res, 400, "Truck booking ID is required");
+    }
+    if (!remarks || remarks.trim() === "") {
+      return sendResponse(res, 400, "Remarks are required for cancellation");
+    }
+
+    // ✅ Find the truck booking
+    const truckBooking = await TruckBooking.findOne({
+      truckBookingId: truckBookingId,
+    });
+    if (!truckBooking) {
+      return sendResponse(res, 404, "Truck booking not found");
+    }
+
+    // ✅ Handle statuses that can't be cancelled
+    if (
+      truckBooking.status === STATUS.CANCELLED ||
+      truckBooking.status === STATUS.REJECTED
+    ) {
+      return sendResponse(
+        res,
+        200,
+        "Truck booking is already cancelled or rejected",
+        { booking: truckBooking }
+      );
+    }
+
+    let allocation = null;
+    let tripBooking = null;
+
+    // ✅ Fetch allocation if exists
+    allocation = await Allocation.findOne({ truckBookingId: truckBooking._id });
+    // ✅ Fetch trip booking if exists
+    tripBooking = await TripBooking.findById(allocation.tripBookingId);
+
+    switch (truckBooking.status) {
+      case STATUS.INQUEUE:
+        truckBooking.status = STATUS.CANCELLED;
+        truckBooking.remarks = remarks;
+        break;
+
+      case STATUS.INPROGRESS:
+        truckBooking.status = STATUS.REJECTED;
+        truckBooking.remarks = remarks;
+
+        if (allocation) {
+          allocation.status = STATUS.REJECTED;
+          allocation.cancelledby = phoneNumber;
+          allocation.remarks = remarks;
+          await allocation.save();
+        }
+        if (tripBooking) {
+          tripBooking.status = STATUS.INQUEUE;
+          await tripBooking.save();
+        }
+        break;
+
+      case STATUS.ACCEPTED:
+        truckBooking.status = STATUS.CANCELLED;
+        truckBooking.remarks = remarks;
+
+        if (allocation) {
+          allocation.status = STATUS.CANCELLED;
+          allocation.cancelledby = phoneNumber;
+          allocation.remarks = remarks;
+          await allocation.save();
+        }
+        if (tripBooking) {
+          tripBooking.status = STATUS.INQUEUE;
+          await tripBooking.save();
+        }
+        break;
+
+      case STATUS.ALLOCATED:
+        truckBooking.status = STATUS.CANCELLED;
+        truckBooking.remarks = remarks;
+
+        if (allocation) {
+          allocation.status = STATUS.CANCELLED;
+          allocation.cancelledby = phoneNumber;
+          allocation.remarks = remarks;
+          await allocation.save();
+        }
+        if (tripBooking) {
+          tripBooking.status = STATUS.INQUEUE;
+          await tripBooking.save();
+        }
+        break;
+
+      default:
+        return sendResponse(res, 400, "Invalid truck booking status");
+    }
+
+    // ✅ Save truck booking changes
+    await truckBooking.save();
+
+    return sendResponse(res, 200, "Truck booking cancelled successfully", {
+      booking: truckBooking,
+      bookingStatus: truckBooking.status,
+      cancelled: true,
+    });
+  } catch (error) {
+    console.error("❌ Truck booking cancellation failed:", error);
+    next(error);
+  }
+};
 // Delete Truck Booking
 // export const deleteTruckBooking = async (req, res, next) => {
 //   try {

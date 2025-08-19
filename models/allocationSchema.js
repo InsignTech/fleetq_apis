@@ -17,7 +17,7 @@ const allocationSchema = new Schema(
     },
     status: {
       type: String,
-      enum: [STATUS.INPROGRESS,STATUS.ALLOCATED, STATUS.CANCELLED],
+      enum: [STATUS.INPROGRESS,STATUS.ACCEPTED,STATUS.REJECTED,STATUS.ALLOCATED, STATUS.CANCELLED],
       required: true,
       default: STATUS.INPROGRESS,
     },
