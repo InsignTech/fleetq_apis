@@ -568,6 +568,11 @@ export const getLatestTruckBookingByPhoneAndReg = async (req, res, next) => {
       }
     }
 
+     const bookingDateIST = latestBooking?.date
+  ? new Date(latestBooking.date).toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+    })
+  : null;
     return sendResponse(res, 200, "Latest truck booking fetched successfully", {
       bookingFound: true,
       truck: {
@@ -575,7 +580,7 @@ export const getLatestTruckBookingByPhoneAndReg = async (req, res, next) => {
         registrationNumber: truck.registrationNumber,
         type: truck.type,
       },
-      bookingDate: latestBooking.date,
+      bookingDate: bookingDateIST,
       bookingId: latestBooking.truckBookingId,
       status: latestBooking.status,
       position: position, // only if INQUEUE
