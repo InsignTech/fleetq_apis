@@ -7,7 +7,7 @@ import Truck from "../models/truckSchema.js";
 import axios from "axios";
 import { buildTruckBookingListPayload } from "../flows/buildTruckBookingListPayload.js";
 import { getCompanyByPhoneNumber } from "./userController.js";
-
+import Allocation from "../models/allocationSchema.js";
 // Create Truck Booking
 export const createTruckBooking = async (req, res, next) => {
   try {
@@ -77,7 +77,8 @@ const position =
     return sendResponse(res, 201, "Truck booking created successfully", {
       bookingStatus: true,
       position: position,
-      truckBookingId: booking._id,
+      bookingId: booking._id,
+      truckBookingId: booking.truckBookingId
     });
   } catch (err) {
     console.log(err);
@@ -305,7 +306,8 @@ export const pushAvailableTrucks = async (req, res, next) => {
       const payload = buildTruckBookingListPayload(
         truck.registrationNumber,
         phoneNumber,
-        truck._id
+        truck._id,
+        truck.type
       );
 
       // API call
@@ -524,32 +526,32 @@ export const getLatestTruckBookingByPhoneAndReg = async (req, res, next) => {
         inQueueBookings.findIndex((b) => b._id.toString() === latestBooking._id.toString()) + 1;
     }
  else {
-      // ✅ For ALLOCATED/INPROGRESS/ACCEPTED/REJECTED → fetch allocation
-    // ✅ For ALLOCATED/INPROGRESS/ACCEPTED/REJECTED → fetch allocation
+
 const allocationDoc = await Allocation.findOne({
   truckBookingId: latestBooking._id,
 }).populate({
   path: "tripBookingId",
   populate: {
     path: "companyId",
-    select: "name", // get forwarder name
+    select: "name", 
   },
   select: "companyId destination rate contactName contactNumber",
 });
 
+
 if (allocationDoc?.tripBookingId) {
+  const trip = allocationDoc.tripBookingId;
   allocation = {
-    forwarder: null, // ✅ company name as forwarder
-    destination: null,
-    rate: null,
-    contactPerson: 75589785412,
-    contactNumber: arjun,
+    forwarder: trip.companyId?.name || null, 
+    destination: trip.destination || null,
+    rate: trip.rate || null,
+    contactPerson: trip.contactName || null,
+    contactNumber: trip.contactNumber || null,
   };
 }
-
     }
 
-    // ✅ Success response
+
     return sendResponse(res, 200, "Latest truck booking fetched successfully", {
       bookingFound: true,
       truck: {
@@ -557,7 +559,7 @@ if (allocationDoc?.tripBookingId) {
         registrationNumber: truck.registrationNumber,
         type: truck.type,
       },
-      bookingId: latestBooking._id,
+      bookingId: latestBooking.truckBookingId,
       status: latestBooking.status,
       position: position, // only if INQUEUE
       allocation: allocation, // only for allocated/inprogress etc.

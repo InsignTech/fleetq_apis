@@ -1,10 +1,16 @@
 import mongoose from "mongoose";
 import { statusValues } from "../utils/constants/statusEnum.js";
+import Counter from "./counterSchema.js"; // import counter model
 
 const Schema = mongoose.Schema;
 
 const truckBookingSchema = new Schema(
   {
+    truckBookingId: {
+      type: String,
+      unique: true,
+      default: null,
+    },
     companyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
@@ -37,7 +43,6 @@ const truckBookingSchema = new Schema(
       type: String,
       trim: true,
       required: true,
-      // You can add validation pattern for phone numbers here if needed
     },
     createdUserId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -61,6 +66,21 @@ const truckBookingSchema = new Schema(
   },
   { timestamps: true }
 );
+
+// 🔹 Auto-generate truckBookingId safely using counter
+truckBookingSchema.pre("save", async function (next) {
+  if (this.isNew && !this.truckBookingId) {
+    const counter = await Counter.findOneAndUpdate(
+      { name: "truckBooking" },       // counter key
+      { $inc: { seq: 1 } },           // increment by 1
+      { new: true, upsert: true }     // create if not exist
+    );
+
+    this.truckBookingId =
+      "FLEETTRKB" + String(counter.seq).padStart(5, "0");
+  }
+  next();
+});
 
 const TruckBooking = mongoose.model("TruckBooking", truckBookingSchema);
 export default TruckBooking;
