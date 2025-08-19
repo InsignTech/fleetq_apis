@@ -21,12 +21,12 @@ export const createTruckBooking = async (req, res, next) => {
       });
     }
 
-    const truckExist  = await Truck.findById(truckId)
+    const truckExist = await Truck.findById(truckId);
 
-    if(!truckExist){
-      return sendResponse(res,201, "truck not Exist", {
-        bookingStatus:false
-      })
+    if (!truckExist) {
+      return sendResponse(res, 201, "truck not Exist", {
+        bookingStatus: false,
+      });
     }
     const existingBooking = await TruckBooking.findOne({
       truckId,
@@ -53,32 +53,34 @@ export const createTruckBooking = async (req, res, next) => {
       createdUserId: req?.user?._id || null,
     });
 
-const inQueueBookings = await TruckBooking.aggregate([
-  {
-    $match: { status: STATUS.INQUEUE }
-  },
-  {
-    $lookup: {
-      from: "trucks", // 🚨 must match Mongo collection name
-      localField: "truckId",
-      foreignField: "_id",
-      as: "truck"
-    }
-  },
-  { $unwind: "$truck" },
-  { $match: { "truck.type": truckExist.type } },
-  { $sort: { createdAt: 1 } },
-  { $project: { _id: 1 } }
-]);
+    const inQueueBookings = await TruckBooking.aggregate([
+      {
+        $match: { status: STATUS.INQUEUE },
+      },
+      {
+        $lookup: {
+          from: "trucks", // 🚨 must match Mongo collection name
+          localField: "truckId",
+          foreignField: "_id",
+          as: "truck",
+        },
+      },
+      { $unwind: "$truck" },
+      { $match: { "truck.type": truckExist.type } },
+      { $sort: { createdAt: 1 } },
+      { $project: { _id: 1 } },
+    ]);
 
-const position =
-  inQueueBookings.findIndex((b) => b._id.toString() === booking._id.toString()) + 1;
+    const position =
+      inQueueBookings.findIndex(
+        (b) => b._id.toString() === booking._id.toString()
+      ) + 1;
 
     return sendResponse(res, 201, "Truck booking created successfully", {
       bookingStatus: true,
       position: position,
       bookingId: booking._id,
-      truckBookingId: booking.truckBookingId
+      truckBookingId: booking.truckBookingId,
     });
   } catch (err) {
     console.log(err);
@@ -447,16 +449,20 @@ export const SearchAndpushAvailableTrucks = async (req, res, next) => {
   }
 };
 
-
 export const getLatestTruckBookingByPhoneAndReg = async (req, res, next) => {
   try {
     const { phoneNumber, registrationNumber } = req.body || {};
 
     // ✅ Validation
     if (!phoneNumber || !registrationNumber) {
-      return sendResponse(res, 200, "Phone number and registration number are required", {
-        bookingFound: false,
-      });
+      return sendResponse(
+        res,
+        200,
+        "Phone number and registration number are required",
+        {
+          bookingFound: false,
+        }
+      );
     }
 
     // ✅ Get company by phone number
@@ -474,27 +480,32 @@ export const getLatestTruckBookingByPhoneAndReg = async (req, res, next) => {
     });
 
     if (!truck) {
-      return sendResponse(res, 200, "No truck found for this registration number", {
-        bookingFound: false,
-      });
+      return sendResponse(
+        res,
+        200,
+        "No truck found for this registration number",
+        {
+          bookingFound: false,
+        }
+      );
     }
 
     // ✅ Find latest booking for this truck
     const latestBooking = await TruckBooking.findOne({
       truckId: truck._id,
-      status: { 
+      status: {
         $in: [
-          STATUS.INQUEUE, 
-          STATUS.INPROGRESS, 
-          STATUS.ACCEPTED, 
-          STATUS.REJECTED, 
-          STATUS.ALLOCATED
-        ]
+          STATUS.INQUEUE,
+          STATUS.INPROGRESS,
+          STATUS.ACCEPTED,
+          STATUS.REJECTED,
+          STATUS.ALLOCATED,
+        ],
       },
     })
-    .sort({ createdAt: -1 })  // pick latest
-    .populate("companyId", "name") // optional: include company info
-    .populate("truckId", "registrationNumber type");
+      .sort({ createdAt: -1 }) // pick latest
+      .populate("companyId", "name") // optional: include company info
+      .populate("truckId", "registrationNumber type");
 
     if (!latestBooking) {
       return sendResponse(res, 200, "No booking found for this truck", {
@@ -513,44 +524,49 @@ export const getLatestTruckBookingByPhoneAndReg = async (req, res, next) => {
             from: "trucks",
             localField: "truckId",
             foreignField: "_id",
-            as: "truck"
-          }
+            as: "truck",
+          },
         },
         { $unwind: "$truck" },
         { $match: { "truck.type": truck.type } }, // only same feet type
         { $sort: { createdAt: 1 } },
-        { $project: { _id: 1 } }
+        { $project: { _id: 1 } },
       ]);
 
       position =
-        inQueueBookings.findIndex((b) => b._id.toString() === latestBooking._id.toString()) + 1;
+        inQueueBookings.findIndex(
+          (b) => b._id.toString() === latestBooking._id.toString()
+        ) + 1;
+    } else {
+      const allocationDoc = await Allocation.findOne({
+        truckBookingId: latestBooking._id,
+      }).populate({
+        path: "tripBookingId",
+        populate: {
+          path: "companyId",
+          select: "name",
+        },
+        select: "companyId destination rate contactName contactNumber",
+      });
+
+      const allocatedOnIST = allocationDoc?.allocatedOn
+  ? new Date(allocationDoc.allocatedOn).toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+    })
+  : null;
+
+      if (allocationDoc?.tripBookingId) {
+        const trip = allocationDoc.tripBookingId;
+        allocation = {
+          forwarder: trip.companyId?.name || null,
+          destination: trip.destination || null,
+          rate: trip.rate || null,
+          allocatedOn: allocatedOnIST,
+          contactPerson: trip.contactName || null,
+          contactNumber: trip.contactNumber || null,
+        };
+      }
     }
- else {
-
-const allocationDoc = await Allocation.findOne({
-  truckBookingId: latestBooking._id,
-}).populate({
-  path: "tripBookingId",
-  populate: {
-    path: "companyId",
-    select: "name", 
-  },
-  select: "companyId destination rate contactName contactNumber",
-});
-
-
-if (allocationDoc?.tripBookingId) {
-  const trip = allocationDoc.tripBookingId;
-  allocation = {
-    forwarder: trip.companyId?.name || null, 
-    destination: trip.destination || null,
-    rate: trip.rate || null,
-    contactPerson: trip.contactName || null,
-    contactNumber: trip.contactNumber || null,
-  };
-}
-    }
-
 
     return sendResponse(res, 200, "Latest truck booking fetched successfully", {
       bookingFound: true,
@@ -564,7 +580,6 @@ if (allocationDoc?.tripBookingId) {
       position: position, // only if INQUEUE
       allocation: allocation, // only for allocated/inprogress etc.
     });
-
   } catch (err) {
     console.error("🔥 Error in getLatestTruckBookingByPhoneAndReg:", err);
     return sendResponse(res, 200, "Error Occurred", {
@@ -572,7 +587,6 @@ if (allocationDoc?.tripBookingId) {
     });
   }
 };
-
 
 // Delete Truck Booking
 // export const deleteTruckBooking = async (req, res, next) => {
