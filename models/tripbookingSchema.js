@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { statusValues } from "../utils/constants/statusEnum.js";
+import { STATUS, statusValues } from "../utils/constants/statusEnum.js";
 import Counter from "./counterSchema.js"; // ✅ import counter model
 
 const Schema = mongoose.Schema;
@@ -9,7 +9,7 @@ const tripBookingSchema = new Schema(
     tripBookingId: {
       type: String,
       unique: true,
-      default: null,   // ✅ not required, auto-generated
+      default: null, // ✅ not required, auto-generated
     },
     companyId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -42,7 +42,7 @@ const tripBookingSchema = new Schema(
       type: String,
       enum: statusValues,
       required: true,
-      default: "inqueue",
+      default: STATUS.INQUEUE,
     },
     rate: {
       type: Number,
@@ -88,13 +88,12 @@ const tripBookingSchema = new Schema(
 tripBookingSchema.pre("save", async function (next) {
   if (this.isNew && !this.tripBookingId) {
     const counter = await Counter.findOneAndUpdate(
-      { name: "tripBooking" },      // separate counter name
-      { $inc: { seq: 1 } },         // increment by 1
-      { new: true, upsert: true }   // create if missing
+      { name: "tripBooking" }, // separate counter name
+      { $inc: { seq: 1 } }, // increment by 1
+      { new: true, upsert: true } // create if missing
     );
 
-    this.tripBookingId =
-      "FLEETTRPB" + String(counter.seq).padStart(5, "0");
+    this.tripBookingId = "FLEETTRPB" + String(counter.seq).padStart(5, "0");
   }
   next();
 });

@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { statusValues } from "../utils/constants/statusEnum.js";
+import { STATUS, statusValues } from "../utils/constants/statusEnum.js";
 import Counter from "./counterSchema.js"; // import counter model
 
 const Schema = mongoose.Schema;
@@ -30,7 +30,7 @@ const truckBookingSchema = new Schema(
       type: String,
       enum: statusValues,
       required: true,
-      default: "inqueue",
+      default: STATUS.INQUEUE,
     },
     contactName: {
       type: String,
@@ -71,13 +71,12 @@ const truckBookingSchema = new Schema(
 truckBookingSchema.pre("save", async function (next) {
   if (this.isNew && !this.truckBookingId) {
     const counter = await Counter.findOneAndUpdate(
-      { name: "truckBooking" },       // counter key
-      { $inc: { seq: 1 } },           // increment by 1
-      { new: true, upsert: true }     // create if not exist
+      { name: "truckBooking" }, // counter key
+      { $inc: { seq: 1 } }, // increment by 1
+      { new: true, upsert: true } // create if not exist
     );
 
-    this.truckBookingId =
-      "FLEETTRKB" + String(counter.seq).padStart(5, "0");
+    this.truckBookingId = "FLEETTRKB" + String(counter.seq).padStart(5, "0");
   }
   next();
 });

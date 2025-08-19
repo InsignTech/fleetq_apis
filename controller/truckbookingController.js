@@ -575,6 +575,7 @@ export const getLatestTruckBookingByPhoneAndReg = async (req, res, next) => {
         registrationNumber: truck.registrationNumber,
         type: truck.type,
       },
+      bookingDate: latestBooking.date,
       bookingId: latestBooking.truckBookingId,
       status: latestBooking.status,
       position: position, // only if INQUEUE

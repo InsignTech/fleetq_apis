@@ -41,6 +41,9 @@ const allocationSchema = new Schema(
       maxlength: 500,
       default: null,
     },
+     cancelledby: {
+      type: Number
+    },
   },
   { timestamps: true }
 );
