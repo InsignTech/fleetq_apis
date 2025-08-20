@@ -27,6 +27,13 @@ app.use("/locations", locationRoutes);
 app.use("/tripbooking", tripBookingRoutes);
 app.use("/truckbooking", truckbookingRoutes);
 app.use("/allocation", allocationRoutes);
+app.get('/test', (req, res) => {
+  res.status(200).json({
+    message: "This is a successful GET request response!",
+    status: "success",
+    file: "https://morth.nic.in/sites/default/files/dd12-13_0.pdf"
+  });
+});
 
 app.use(errorHandler);
 
