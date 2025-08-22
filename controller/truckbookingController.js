@@ -635,7 +635,9 @@ export const cancelTruckBooking = async (req, res, next) => {
     // ✅ Fetch allocation if exists
     allocation = await Allocation.findOne({ truckBookingId: truckBooking._id });
     // ✅ Fetch trip booking if exists
+    if(allocation){
     tripBooking = await TripBooking.findById(allocation.tripBookingId);
+    }
 
     switch (truckBooking.status) {
       case STATUS.INQUEUE:

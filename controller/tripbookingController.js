@@ -6,7 +6,7 @@ import User from '../models/userSchema.js';
 // Create a new trip booking
 export const createTripBooking = async (req, res, next) => {
   try {
-    const { companyId, partyName, type, destination, rate, remarks } =
+    const { companyId, partyName, type, destination, rate, remarks, contactName, contactNumber } =
       req.body;
 
     // Validate required fields
@@ -25,6 +25,8 @@ export const createTripBooking = async (req, res, next) => {
       rate,
       createdUserId: req.user._id,
       remarks,
+      contactName,
+      contactNumber
     });
 
     return sendResponse(res, 201, "Trip booking created successfully", trip);

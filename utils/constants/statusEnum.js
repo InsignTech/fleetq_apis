@@ -6,6 +6,7 @@ export const STATUS = {
   REJECTED: "rejected",
   ALLOCATED: "allocated",
   CANCELLED: "cancelled",
+  AUTOCANCELLED: "autoCancelled"
 };
 
 export const statusValues = Object.values(STATUS);
