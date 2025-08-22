@@ -9,12 +9,12 @@ import tripBookingRoutes from "./routes/tripBookingRoutes.js";
 import truckbookingRoutes from "./routes/truckBookingRoutes.js";
 import allocationRoutes from "./routes/allocationRoutes.js";
 import errorHandler from "./middleWare/errorHandler.js";
-
+import path from "path";
 const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+app.use("/location_pdfs", express.static(path.join(process.cwd(), "public", "location_pdfs")));
 const PORT = process.env.PORT || 5000;
 app.get("/", (req, res) => {
   res.send("Hello world !");

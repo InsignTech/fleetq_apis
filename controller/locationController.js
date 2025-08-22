@@ -1,7 +1,9 @@
 // controllers/locationController.js
 import Location from "../models/locationSchema.js";
 import { sendResponse } from "../utils/responseHandler.js";
-
+import fs from "fs";
+import path from "path";
+import PDFDocument from "pdfkit";
 // Create Location
 export const createLocation = async (req, res, next) => {
   try {
@@ -42,6 +44,110 @@ export const getLocations = async (req, res, next) => {
       .sort({ createdAt: -1 });
 
     return sendResponse(res, 200, "Locations fetched successfully", locations);
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+export const getLocationsPDF = async (req, res, next) => {
+  try {
+    // 1️⃣ Fetch sorted locations with required fields only
+    const locations = await Location.find({}, { locationName: 1, distanceKm: 1, _id: 0 })
+      .sort({ locationName: 1 });
+
+    if (!locations.length) {
+      return sendResponse(res, 404, "No locations found");
+    }
+
+    // 2️⃣ Create PDF storage folder if not exists
+    const pdfDir = path.join(process.cwd(), "public", "location_pdfs");
+    if (!fs.existsSync(pdfDir)) {
+      fs.mkdirSync(pdfDir, { recursive: true });
+    }
+
+    // 3️⃣ Generate unique file name & path
+    const fileName = `locations_${Date.now()}.pdf`;
+    const filePath = path.join(pdfDir, fileName);
+
+    // 4️⃣ Create PDF Document
+    const doc = new PDFDocument({ margin: 40, size: "A4" });
+    const writeStream = fs.createWriteStream(filePath);
+    doc.pipe(writeStream);
+
+    // 🎨 Colors & Styling
+    const headerBgColor = "#1E88E5"; // Blue header background
+    const headerTextColor = "#FFFFFF"; // White text in header
+    const borderColor = "#CCCCCC";
+
+    // 5️⃣ Title
+    doc.fontSize(20).fillColor("#333333").text("Locations List", {
+      align: "center",
+    });
+    doc.moveDown(1);
+
+    // 6️⃣ Draw Table Header Background
+    const tableTop = doc.y + 5;
+    const startX = 50;
+    const tableWidth = 500;
+    const rowHeight = 25;
+
+    doc
+      .rect(startX, tableTop, tableWidth, rowHeight)
+      .fill(headerBgColor);
+
+    // 7️⃣ Table Header Text
+    doc
+      .fillColor(headerTextColor)
+      .fontSize(12)
+      .text("Location Name", startX + 10, tableTop + 7, { width: 300, align: "left" });
+    doc
+      .text("Distance (Km)", startX + 330, tableTop + 7, { width: 150, align: "right" });
+
+    // 8️⃣ Draw Border Below Header
+    doc
+      .moveTo(startX, tableTop + rowHeight)
+      .lineTo(startX + tableWidth, tableTop + rowHeight)
+      .strokeColor(borderColor)
+      .stroke();
+
+    // 9️⃣ Add Table Rows
+    let y = tableTop + rowHeight + 5;
+    doc.fontSize(11).fillColor("#000000");
+
+    locations.forEach((loc, index) => {
+      // Alternate Row Backgrounds for better readability
+      if (index % 2 === 0) {
+        doc.rect(startX, y - 5, tableWidth, rowHeight).fill("#F8F9FA").fillColor("#000000");
+      }
+
+      // Row Text
+      doc.text(loc.locationName, startX + 10, y, { width: 300, align: "left" });
+      doc.text(loc.distanceKm.toString(), startX + 330, y, { width: 150, align: "right" });
+
+      // Reset fill color for next row
+      doc.fillColor("#000000");
+
+      y += rowHeight;
+    });
+
+    //  🔟 Footer Section
+    doc.moveDown(2);
+    doc.fontSize(10).fillColor("#555555").text(
+      `Generated on: ${new Date().toLocaleString()}`,
+      { align: "right" }
+    );
+
+    // ✅ Finalize PDF
+    doc.end();
+
+    // Wait for the file to finish
+    writeStream.on("finish", () => {
+      const fileUrl = `${req.protocol}://${req.get("host")}/location_pdfs/${fileName}`;
+      return sendResponse(res, 200, "PDF generated successfully", { fileUrl });
+    });
+
+    writeStream.on("error", (err) => next(err));
   } catch (err) {
     next(err);
   }
