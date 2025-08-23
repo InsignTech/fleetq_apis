@@ -39,7 +39,7 @@ const trips = await TripBooking.create(tripsData);
 
 const tripBookingIds = trips.map(trip => trip.tripBookingId);
 
-    return sendResponse(res, 201, `${trips.length} Trip booking(s) created successfully`,  { bookingStatus: true, tripBookingIds });
+    return sendResponse(res, 201, `${trips.length} Trip booking(s)\n created successfully`,  { bookingStatus: true, tripBookingIds });
 
   } catch (err) {
     next(err);
