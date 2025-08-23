@@ -49,12 +49,13 @@ export const getLocations = async (req, res, next) => {
   }
 };
 
-
 export const getLocationsPDF = async (req, res, next) => {
   try {
     // 1️⃣ Fetch sorted locations with required fields only
-    const locations = await Location.find({}, { locationName: 1, distanceKm: 1, _id: 0 })
-      .sort({ locationName: 1 });
+    const locations = await Location.find(
+      {},
+      { locationName: 1, distanceKm: 1, _id: 0 }
+    ).sort({ locationName: 1 });
 
     if (!locations.length) {
       return sendResponse(res, 404, "No locations found");
@@ -92,17 +93,20 @@ export const getLocationsPDF = async (req, res, next) => {
     const tableWidth = 500;
     const rowHeight = 25;
 
-    doc
-      .rect(startX, tableTop, tableWidth, rowHeight)
-      .fill(headerBgColor);
+    doc.rect(startX, tableTop, tableWidth, rowHeight).fill(headerBgColor);
 
     // 7️⃣ Table Header Text
     doc
       .fillColor(headerTextColor)
       .fontSize(12)
-      .text("Location Name", startX + 10, tableTop + 7, { width: 300, align: "left" });
-    doc
-      .text("Distance (Km)", startX + 330, tableTop + 7, { width: 150, align: "right" });
+      .text("Location Name", startX + 10, tableTop + 7, {
+        width: 300,
+        align: "left",
+      });
+    doc.text("Distance (Km)", startX + 330, tableTop + 7, {
+      width: 150,
+      align: "right",
+    });
 
     // 8️⃣ Draw Border Below Header
     doc
@@ -118,12 +122,18 @@ export const getLocationsPDF = async (req, res, next) => {
     locations.forEach((loc, index) => {
       // Alternate Row Backgrounds for better readability
       if (index % 2 === 0) {
-        doc.rect(startX, y - 5, tableWidth, rowHeight).fill("#F8F9FA").fillColor("#000000");
+        doc
+          .rect(startX, y - 5, tableWidth, rowHeight)
+          .fill("#F8F9FA")
+          .fillColor("#000000");
       }
 
       // Row Text
       doc.text(loc.locationName, startX + 10, y, { width: 300, align: "left" });
-      doc.text(loc.distanceKm.toString(), startX + 330, y, { width: 150, align: "right" });
+      doc.text(loc.distanceKm.toString(), startX + 330, y, {
+        width: 150,
+        align: "right",
+      });
 
       // Reset fill color for next row
       doc.fillColor("#000000");
@@ -133,17 +143,19 @@ export const getLocationsPDF = async (req, res, next) => {
 
     //  🔟 Footer Section
     doc.moveDown(2);
-    doc.fontSize(10).fillColor("#555555").text(
-      `Generated on: ${new Date().toLocaleString()}`,
-      { align: "right" }
-    );
+    doc
+      .fontSize(10)
+      .fillColor("#555555")
+      .text(`Generated on: ${new Date().toLocaleString()}`, { align: "right" });
 
     // ✅ Finalize PDF
     doc.end();
 
     // Wait for the file to finish
     writeStream.on("finish", () => {
-      const fileUrl = `${req.protocol}://${req.get("host")}/location_pdfs/${fileName}`;
+      const fileUrl = `${req.protocol}://${req.get(
+        "host"
+      )}/location_pdfs/${fileName}`;
       return sendResponse(res, 200, "PDF generated successfully", { fileUrl });
     });
 
@@ -167,6 +179,55 @@ export const getLocationById = async (req, res, next) => {
     return sendResponse(res, 200, "Location fetched successfully", location);
   } catch (err) {
     next(err);
+  }
+};
+
+//price by location name
+export const getLocationDetails = async (req, res, next) => {
+  try {
+    const { destination, type } = req.body;
+
+    // ✅ Validate required fields
+    if (!destination || !type) {
+      return sendResponse(res, 200, "Destination and type are required", {
+        success: false,
+      });
+    }
+
+    // ✅ Find location (case-insensitive)
+    const location = await Location.findOne({
+      locationName: { $regex: new RegExp(`^${destination}$`, "i") },
+    });
+
+    // ❌ If location not found
+    if (!location) {
+      return sendResponse(res, 200, "Location not found", {
+        success: false,
+      });
+    }
+
+    // ✅ Pick correct rate based on type
+    let rate;
+    if (type === "20") {
+      rate = location.cashRate20Ft;
+    } else if (type === "40") {
+      rate = location.cashRate40Ft;
+    } else {
+      return sendResponse(res, 200, "Invalid type. Use '20' or '40", {
+        success: false,
+      });
+    }
+
+    // ✅ Return destination & rate only
+    return sendResponse(res, 200, "Location fetched successfully", {
+      destination: location.locationName,
+      success: true,
+      rate,
+    });
+  } catch (err) {
+    return sendResponse(res, 200, "Location fetched failed", {
+      success: false,
+    });
   }
 };
 

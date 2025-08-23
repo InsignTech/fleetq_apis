@@ -3,6 +3,9 @@ import mongoose from "mongoose";
 import { STATUS, statusValues } from "../utils/constants/statusEnum.js";
 import { sendResponse } from "../utils/responseHandler.js";
 import User from '../models/userSchema.js'; 
+import { generatePDF } from "../utils/pdfService.js";
+import { getCompanyByPhoneNumber } from "./userController.js";
+
 // Create a new trip booking
 export const createTripBooking = async (req, res, next) => {
   try {
@@ -11,7 +14,9 @@ export const createTripBooking = async (req, res, next) => {
 
     // Validate required fields
     if (!companyId || !type || !destination || !rate) {
-      return next({ statusCode: 400, message: "Missing required fields" });
+    return sendResponse(res, 201, "Missing required fields", {
+            bookingStatus: false,
+          }); 
     }
 
     // Create new trip booking document
@@ -29,7 +34,7 @@ export const createTripBooking = async (req, res, next) => {
       contactNumber
     });
 
-    return sendResponse(res, 201, "Trip booking created successfully", trip);
+    return sendResponse(res, 201, "Trip booking created successfully",  { bookingStatus: false });
   } catch (err) {
     next(err);
   }
@@ -58,6 +63,75 @@ export const getTripBookings = async (req, res, next) => {
     next(err);
   }
 };
+
+
+
+export const getAllTripBookings = async (req, res, next) => {
+  try {
+    let filter = {};
+
+    
+        const companyInfo = await getCompanyByPhoneNumber(req.body.phoneNumber);
+        if (!companyInfo.isValid || !companyInfo.companyId) {
+          return sendResponse(res, 200, "No company found for this phone number", {
+            isTruckAvailable: false,
+          });
+        }
+
+    // ✅ Company ID filter
+    if (
+     companyInfo.companyId &&
+      mongoose.Types.ObjectId.isValid(companyInfo.companyId)
+    ) {
+      filter.companyId = companyInfo.companyId;
+    }
+
+    // ✅ Status filter
+    if (req.query.status) {
+      filter.status = req.query.status;
+    }
+
+    
+    // ✅ Fetch Trips
+    const trips = await TripBooking.find(filter).sort({ date: 1 });
+
+    if (!trips.length) {
+      return sendResponse(res, 404, "No trip bookings found");
+    }
+
+    // ✅ If trips > 5, generate PDF & send URL
+    if (trips.length > 5) {
+      const pdfUrl = await generatePDF({
+        data: trips.map((t) => ({
+          bookingId: t.tripBookingId.toString(),
+          date: t.date.toISOString().split("T")[0],
+          status: t.status,
+          amount: t.amount || "N/A",
+        })),
+        headers: [
+          { key: "bookingId", label: "Booking ID", width: 150 },
+          { key: "date", label: "Date", width: 100 },
+          { key: "status", label: "Status", width: 100 },
+          { key: "amount", label: "Amount", width: 100 },
+        ],
+        title: "Trip Bookings",
+        folderName: "trip_pdfs",
+        req,
+      });
+
+      return sendResponse(res, 200, "PDF generated successfully", {
+        pdfUrl,
+        total: trips.length,
+      });
+    }
+
+    // ✅ If <= 5, send normal response
+    return sendResponse(res, 200, "Trip bookings fetched successfully", trips);
+  } catch (err) {
+    next(err);
+  }
+};
+
 
 // Get single trip booking by ID
 export const getTripBookingById = async (req, res, next) => {

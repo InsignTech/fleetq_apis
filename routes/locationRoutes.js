@@ -6,6 +6,7 @@ import {
   updateLocation,
   deleteLocation,
   getLocationsPDF,
+  getLocationDetails,
 } from "../controller/locationController.js";
 import protect from "../middleWare/userMiddleWare.js";
 import { checkAdmin } from "../middleWare/checkAdmin.js";
@@ -20,6 +21,8 @@ router.get("/", getLocations);
 
 // Get single location by ID
 router.get("/get-all-locations-pdf",getLocationsPDF)
+
+router.post("/get-location-details",getLocationDetails)
 
 router.get("/:id", getLocationById);
 

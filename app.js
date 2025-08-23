@@ -15,6 +15,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/location_pdfs", express.static(path.join(process.cwd(), "public", "location_pdfs")));
+app.use("/trip_pdfs", express.static(path.join(process.cwd(), "public", "trip_pdfs")));
 const PORT = process.env.PORT || 5000;
 app.get("/", (req, res) => {
   res.send("Hello world !");

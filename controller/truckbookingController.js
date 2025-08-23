@@ -227,6 +227,7 @@ export const getTruckBookingByMobileNumber = async (req, res, next) => {
   }
 };
 
+//not used
 export const getAvailableTrucks = async (req, res, next) => {
   try {
     // Find all truckIds currently in INQUEUE status
@@ -602,10 +603,10 @@ export const cancelTruckBooking = async (req, res, next) => {
 
     // ✅ Validation
     if (!truckBookingId) {
-      return sendResponse(res, 400, "Truck booking ID is required");
+      return sendResponse(res, 200, "Truck booking ID is required", {cancelled:false});
     }
     if (!remarks || remarks.trim() === "") {
-      return sendResponse(res, 400, "Remarks are required for cancellation");
+      return sendResponse(res, 200, "Remarks are required for cancellation", {cancelled:false});
     }
 
     // ✅ Find the truck booking
@@ -613,7 +614,7 @@ export const cancelTruckBooking = async (req, res, next) => {
       truckBookingId: truckBookingId,
     });
     if (!truckBooking) {
-      return sendResponse(res, 404, "Truck booking not found");
+      return sendResponse(res, 200, "Truck booking not found", {cancelled:false});
     }
 
     // ✅ Handle statuses that can't be cancelled
@@ -625,7 +626,9 @@ export const cancelTruckBooking = async (req, res, next) => {
         res,
         200,
         "Truck booking is already cancelled or rejected",
-        { booking: truckBooking }
+        { booking: truckBooking,
+          cancelled:false
+         }
       );
     }
 
@@ -694,7 +697,7 @@ export const cancelTruckBooking = async (req, res, next) => {
         break;
 
       default:
-        return sendResponse(res, 400, "Invalid truck booking status");
+        return sendResponse(res, 400, "Invalid truck booking status", {cancelled:false});
     }
 
     // ✅ Save truck booking changes
@@ -707,7 +710,7 @@ export const cancelTruckBooking = async (req, res, next) => {
     });
   } catch (error) {
     console.error("❌ Truck booking cancellation failed:", error);
-    next(error);
+     return sendResponse(res, 400, "Truck booking cancellation failed", {cancelled:false});
   }
 };
 // Delete Truck Booking
