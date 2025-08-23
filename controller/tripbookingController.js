@@ -9,7 +9,7 @@ import { getCompanyByPhoneNumber } from "./userController.js";
 // Create a new trip booking
 export const createTripBooking = async (req, res, next) => {
   try {
-    const { companyId, partyName, type, destination, rate, remarks, contactName, contactNumber } =
+    const { companyId, partyName, type, destination, rate, remarks, contactName, contactNumber, count= 1 } =
       req.body;
 
     // Validate required fields
@@ -19,22 +19,28 @@ export const createTripBooking = async (req, res, next) => {
           }); 
     }
 
-    // Create new trip booking document
-    const trip = await TripBooking.create({
-      companyId,
-      partyName,
-      type,
-      destination,
-      date: new Date(),
-      status: STATUS.INQUEUE,
-      rate,
-      createdUserId: req.user._id,
-      remarks,
-      contactName,
-      contactNumber
-    });
+const tripsData = Array.from({ length: count }, () => ({
+  companyId,
+  partyName,
+  type,
+  destination,
+  date: new Date(),
+  status: STATUS.INQUEUE,
+  rate,
+  createdUserId: req.user._id,
+  remarks,
+  contactName,
+  contactNumber,
+}));
 
-    return sendResponse(res, 201, "Trip booking created successfully",  { bookingStatus: false });
+// ✅ Create bookings one by one, so pre('save') runs for each
+const trips = await TripBooking.create(tripsData);
+
+
+const tripBookingIds = trips.map(trip => trip.tripBookingId);
+
+    return sendResponse(res, 201, `${trips.length} Trip booking(s) created successfully`,  { bookingStatus: true, tripBookingIds });
+
   } catch (err) {
     next(err);
   }
