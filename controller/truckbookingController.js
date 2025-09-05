@@ -133,7 +133,7 @@ export const createTruckBooking = async (req, res, next) => {
     // Respond immediately
     sendResponse(res, 201, "Truck booking created successfully", {
       bookingStatus: true,
-      bookingId: booking._id,
+      bookingId: booking.truckBookingId,
       bookingTime: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
     });
 
