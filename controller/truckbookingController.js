@@ -6,44 +6,119 @@ import User from "../models/userSchema.js";
 import Truck from "../models/truckSchema.js";
 import axios from "axios";
 import { buildTruckBookingListPayload } from "../flows/buildTruckBookingListPayload.js";
+import {
+  buildTripAllocationPayload,
+  buildTruckAllocationPayload,
+} from "../flows/buildAllocationPayload.js";
 import { getCompanyByPhoneNumber } from "./userController.js";
 import Allocation from "../models/allocationSchema.js";
 import TripBooking from "../models/tripbookingSchema.js";
+import { allocateTruckAndTrip } from "./allocationController.js";
 
-// Create Truck Booking
+const apiUrl =
+  "https://api.connectpanels.com/whatsapp-api/v1.0/customer/119041/bot/721911d2181a49af/template";
+
+// Send Truck-side Notification
+const sendTruckNotification = async (
+  truck,
+  trip,
+  contactName,
+  contactNumber,
+  phoneNumber
+) => {
+  const payload = buildTruckAllocationPayload(
+    truck.registrationNumber,
+    trip.partyName,
+    trip.destination,
+    trip.rate,
+    contactName,
+    contactNumber,
+    phoneNumber
+  );
+
+  try {
+    const response = await axios.post(apiUrl, payload, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Basic e0c18806-0a56-4479-bdb7-995caa70793c-Ic2oMya",
+      },
+    });
+    console.log(`✅ Truck notification sent: ${truck.registrationNumber}`);
+    return response.data;
+  } catch (error) {
+    console.error(`❌ Truck notification failed`, error.message);
+  }
+};
+
+// Send Trip-side Notification
+const sendTripNotification = async (
+  trip,
+  truck,
+  companyName,
+  contactName,
+  contactNumber,
+  phoneNumber
+) => {
+  const payload = buildTripAllocationPayload(
+    trip.destination,
+    trip.rate,
+    companyName,
+    truck.registrationNumber,
+    truck.type,
+    contactName,
+    contactNumber,
+    phoneNumber
+  );
+
+  try {
+    const response = await axios.post(apiUrl, payload, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Basic e0c18806-0a56-4479-bdb7-995caa70793c-Ic2oMya",
+      },
+    });
+    console.log(`✅ Trip notification sent: ${trip.destination}`);
+    return response.data;
+  } catch (error) {
+    console.error(`❌ Trip notification failed`, error.message);
+  }
+};
+
 export const createTruckBooking = async (req, res, next) => {
   try {
     const { companyId, truckId, date, contactName, contactNumber, remarks } =
       req.body;
 
-    // Validate required fields
+    // Validate input
     if (!companyId || !truckId || !contactName || !contactNumber) {
-      return sendResponse(res, 201, "Missing required fields", {
+      return sendResponse(res, 400, "Missing required fields", {
         bookingStatus: false,
       });
     }
 
+    // Check if truck exists
     const truckExist = await Truck.findById(truckId);
-
     if (!truckExist) {
-      return sendResponse(res, 201, "truck not Exist", {
+      return sendResponse(res, 404, "Truck not found", {
         bookingStatus: false,
       });
     }
+
+    // Check if truck already booked
     const existingBooking = await TruckBooking.findOne({
       truckId,
       status: STATUS.INQUEUE,
     });
-
     if (existingBooking) {
       return sendResponse(
         res,
-        201,
+        409,
         "Truck already has a booking in INQUEUE status",
         { bookingStatus: false }
       );
     }
 
+    // Create truck booking
     const booking = await TruckBooking.create({
       companyId,
       truckId,
@@ -55,38 +130,18 @@ export const createTruckBooking = async (req, res, next) => {
       createdUserId: req?.user?._id || null,
     });
 
-    const inQueueBookings = await TruckBooking.aggregate([
-      {
-        $match: { status: STATUS.INQUEUE },
-      },
-      {
-        $lookup: {
-          from: "trucks", // 🚨 must match Mongo collection name
-          localField: "truckId",
-          foreignField: "_id",
-          as: "truck",
-        },
-      },
-      { $unwind: "$truck" },
-      { $match: { "truck.type": truckExist.type } },
-      { $sort: { createdAt: 1 } },
-      { $project: { _id: 1 } },
-    ]);
-
-    const position =
-      inQueueBookings.findIndex(
-        (b) => b._id.toString() === booking._id.toString()
-      ) + 1;
-
-    return sendResponse(res, 201, "Truck booking created successfully", {
+    // Respond immediately
+    sendResponse(res, 201, "Truck booking created successfully", {
       bookingStatus: true,
-      position: position,
       bookingId: booking._id,
-      truckBookingId: booking.truckBookingId,
+      bookingTime: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
     });
+
+    // Trigger allocation in the background
+   // setImmediate(() => allocateTruckAndTrip({ truckBooking: booking }));
   } catch (err) {
-    console.log(err);
-    return sendResponse(res, 201, "Error Occured", { bookingStatus: false });
+    console.error(err);
+    return sendResponse(res, 500, "Error Occurred", { bookingStatus: false });
   }
 };
 
@@ -294,8 +349,6 @@ export const pushAvailableTrucks = async (req, res, next) => {
     }
 
     // Step 3: Prepare WhatsApp API call
-    const apiUrl =
-      "https://api.connectpanels.com/whatsapp-api/v1.0/customer/119041/bot/721911d2181a49af/template";
 
     const results = [];
 
@@ -603,10 +656,14 @@ export const cancelTruckBooking = async (req, res, next) => {
 
     // ✅ Validation
     if (!truckBookingId) {
-      return sendResponse(res, 200, "Truck booking ID is required", {cancelled:false});
+      return sendResponse(res, 200, "Truck booking ID is required", {
+        cancelled: false,
+      });
     }
     if (!remarks || remarks.trim() === "") {
-      return sendResponse(res, 200, "Remarks are required for cancellation", {cancelled:false});
+      return sendResponse(res, 200, "Remarks are required for cancellation", {
+        cancelled: false,
+      });
     }
 
     // ✅ Find the truck booking
@@ -614,7 +671,9 @@ export const cancelTruckBooking = async (req, res, next) => {
       truckBookingId: truckBookingId,
     });
     if (!truckBooking) {
-      return sendResponse(res, 200, "Truck booking not found", {cancelled:false});
+      return sendResponse(res, 200, "Truck booking not found", {
+        cancelled: false,
+      });
     }
 
     // ✅ Handle statuses that can't be cancelled
@@ -626,9 +685,7 @@ export const cancelTruckBooking = async (req, res, next) => {
         res,
         200,
         "Truck booking is already cancelled or rejected",
-        { booking: truckBooking,
-          cancelled:false
-         }
+        { booking: truckBooking, cancelled: false }
       );
     }
 
@@ -638,8 +695,8 @@ export const cancelTruckBooking = async (req, res, next) => {
     // ✅ Fetch allocation if exists
     allocation = await Allocation.findOne({ truckBookingId: truckBooking._id });
     // ✅ Fetch trip booking if exists
-    if(allocation){
-    tripBooking = await TripBooking.findById(allocation.tripBookingId);
+    if (allocation) {
+      tripBooking = await TripBooking.findById(allocation.tripBookingId);
     }
 
     switch (truckBooking.status) {
@@ -697,7 +754,9 @@ export const cancelTruckBooking = async (req, res, next) => {
         break;
 
       default:
-        return sendResponse(res, 400, "Invalid truck booking status", {cancelled:false});
+        return sendResponse(res, 400, "Invalid truck booking status", {
+          cancelled: false,
+        });
     }
 
     // ✅ Save truck booking changes
@@ -710,7 +769,9 @@ export const cancelTruckBooking = async (req, res, next) => {
     });
   } catch (error) {
     console.error("❌ Truck booking cancellation failed:", error);
-     return sendResponse(res, 400, "Truck booking cancellation failed", {cancelled:false});
+    return sendResponse(res, 400, "Truck booking cancellation failed", {
+      cancelled: false,
+    });
   }
 };
 // Delete Truck Booking

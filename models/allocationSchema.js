@@ -22,9 +22,7 @@ const allocationSchema = new Schema(
       default: STATUS.INPROGRESS,
     },
     createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
+      type: String
     },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,

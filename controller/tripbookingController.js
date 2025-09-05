@@ -6,45 +6,53 @@ import User from '../models/userSchema.js';
 import { generatePDF } from "../utils/pdfService.js";
 import { getCompanyByPhoneNumber } from "./userController.js";
 
-// Create a new trip booking
+import { allocateTruckAndTrip } from "./allocationController.js";
+
 export const createTripBooking = async (req, res, next) => {
   try {
-    const { companyId, partyName, type, destination, rate, remarks, contactName, contactNumber, count= 1 } =
-      req.body;
+    const { companyId, partyName, type, destination, rate, remarks, contactName, contactNumber, count = 1 } = req.body;
 
-    // Validate required fields
+    // Validate fields
     if (!companyId || !type || !destination || !rate) {
-    return sendResponse(res, 201, "Missing required fields", {
-            bookingStatus: false,
-          }); 
+      return sendResponse(res, 400, "Missing required fields", { bookingStatus: false });
     }
 
-const tripsData = Array.from({ length: count }, () => ({
-  companyId,
-  partyName,
-  type,
-  destination,
-  date: new Date(),
-  status: STATUS.INQUEUE,
-  rate,
-  createdUserId: req.user._id,
-  remarks,
-  contactName,
-  contactNumber,
-}));
+    // Prepare trips
+    const tripsData = Array.from({ length: count }, () => ({
+      companyId,
+      partyName,
+      type,
+      destination,
+      date: new Date(),
+      status: STATUS.INQUEUE,
+      rate,
+      createdUserId: req.user._id,
+      remarks,
+      contactName,
+      contactNumber,
+    }));
 
-// ✅ Create bookings one by one, so pre('save') runs for each
-const trips = await TripBooking.create(tripsData);
+    // Create trips
+    const trips = await TripBooking.create(tripsData);
 
+    // Respond immediately
+    sendResponse(res, 201, `${trips.length} Trip booking(s) created successfully`, {
+      bookingStatus: true,
+      totalTrips: trips.length,
+    });
 
-const tripBookingIds = trips.map(trip => trip.tripBookingId);
-
-    return sendResponse(res, 201, `${trips.length} Trip booking(s)\n created successfully`,  { bookingStatus: true, tripBookingIds });
-
+    // Allocate each trip asynchronously
+    setImmediate(async () => {
+      for (const trip of trips) {
+        await allocateTruckAndTrip({ tripBooking: trip });
+      }
+    });
   } catch (err) {
+    console.error(err);
     next(err);
   }
 };
+
 
 // Get all trip bookings (optionally filter by company or status)
 export const getTripBookings = async (req, res, next) => {
