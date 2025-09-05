@@ -21,12 +21,13 @@ export const createTripBooking = async (req, res, next) => {
       remarks,
       contactName,
       contactNumber,
+      phoneNumber,
       count = 1,
       date,
     } = req.body;
 
     // ✅ 1. Validate input fields
-    if (!companyId || !type || !destination || !rate) {
+    if (!companyId || !type || !destination || !rate || !phoneNumber) {
       return sendResponse(res, 400, "Missing required fields", {
         bookingStatus: false,
       });
@@ -45,6 +46,7 @@ export const createTripBooking = async (req, res, next) => {
       remarks,
       contactName,
       contactNumber,
+      createdBy:phoneNumber
     }));
 
     // ✅ 3. Create trips in DB
@@ -91,7 +93,7 @@ setImmediate(async () => {
           position,
           destination: trip.destination,
           bookingTime: formatDateTime(trip.date || new Date()),
-          contactNumber: trip.contactNumber,
+          contactNumber: phoneNumber,
         });
 
         // 3. Add a small delay before processing the next trip

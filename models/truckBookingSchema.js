@@ -63,6 +63,9 @@ const truckBookingSchema = new Schema(
       maxlength: 500,
       default: null,
     },
+    createdBy: {
+      type: String
+    }
   },
   { timestamps: true }
 );

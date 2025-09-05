@@ -64,7 +64,6 @@ const tripBookingSchema = new Schema(
     createdUserId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
     },
     updatedUserId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -80,6 +79,9 @@ const tripBookingSchema = new Schema(
       maxlength: 500,
       default: null,
     },
+    createdBy: {
+      type: String
+    }
   },
   { timestamps: true }
 );
