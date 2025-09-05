@@ -14,6 +14,7 @@ import { getCompanyByPhoneNumber } from "./userController.js";
 import Allocation from "../models/allocationSchema.js";
 import TripBooking from "../models/tripbookingSchema.js";
 import { allocateTruckAndTrip } from "./allocationController.js";
+import { formatDateTime } from "../utils/formatDateTime.js";
 
 const apiUrl =
   "https://api.connectpanels.com/whatsapp-api/v1.0/customer/119041/bot/721911d2181a49af/template";
@@ -158,13 +159,11 @@ export const createTruckBooking = async (req, res, next) => {
       bookingStatus: true,
       position: position,
       bookingId: booking.truckBookingId,
-      bookingTime: new Date().toLocaleString("en-IN", {
-        timeZone: "Asia/Kolkata",
-      }),
+      bookingTime: formatDateTime(booking.date)
     });
 
     // Trigger allocation in the background
-    // setImmediate(() => allocateTruckAndTrip({ truckBooking: booking }));
+   //  setImmediate(() => allocateTruckAndTrip({ truckBooking: booking }));
   } catch (err) {
     console.error(err);
     return sendResponse(res, 500, "Error Occurred", { bookingStatus: false });

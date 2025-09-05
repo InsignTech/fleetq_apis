@@ -2,28 +2,43 @@ import TripBooking from "../models/tripbookingSchema.js";
 import mongoose from "mongoose";
 import { STATUS, statusValues } from "../utils/constants/statusEnum.js";
 import { sendResponse } from "../utils/responseHandler.js";
-import User from '../models/userSchema.js'; 
+import User from "../models/userSchema.js";
 import { generatePDF } from "../utils/pdfService.js";
 import { getCompanyByPhoneNumber } from "./userController.js";
-
 import { allocateTruckAndTrip } from "./allocationController.js";
+import axios from "axios";
+import { sendTripBookingConfirmationPush } from "../flows/buildAllocationPayload.js";
+import { formatDateTime } from "../utils/formatDateTime.js";
 
 export const createTripBooking = async (req, res, next) => {
   try {
-    const { companyId, partyName, type, destination, rate, remarks, contactName, contactNumber, count = 1 } = req.body;
+    const {
+      companyId,
+      partyName,
+      type,
+      destination,
+      rate,
+      remarks,
+      contactName,
+      contactNumber,
+      count = 1,
+      date,
+    } = req.body;
 
-    // Validate fields
+    // ✅ 1. Validate input fields
     if (!companyId || !type || !destination || !rate) {
-      return sendResponse(res, 400, "Missing required fields", { bookingStatus: false });
+      return sendResponse(res, 400, "Missing required fields", {
+        bookingStatus: false,
+      });
     }
 
-    // Prepare trips
+    // ✅ 2. Prepare trips payload
     const tripsData = Array.from({ length: count }, () => ({
       companyId,
       partyName,
       type,
       destination,
-      date: new Date(),
+      date: date ? new Date(date) : new Date(),
       status: STATUS.INQUEUE,
       rate,
       createdUserId: req.user._id,
@@ -32,27 +47,69 @@ export const createTripBooking = async (req, res, next) => {
       contactNumber,
     }));
 
-    // Create trips
+    // ✅ 3. Create trips in DB
     const trips = await TripBooking.create(tripsData);
 
-    // Respond immediately
-    sendResponse(res, 201, `${trips.length} Trip booking(s) created successfully`, {
-      bookingStatus: true,
-      totalTrips: trips.length,
-    });
-
-    // Allocate each trip asynchronously
-    setImmediate(async () => {
-      for (const trip of trips) {
-        await allocateTruckAndTrip({ tripBooking: trip });
+    // ✅ 4. Send single success response immediately
+    sendResponse(
+      res,
+      201,
+      `${trips.length} Trip booking(s) created successfully`,
+      {
+        bookingStatus: true,
+        totalTrips: trips.length,
+        bookingTime: new Date().toLocaleString("en-IN", {
+          timeZone: "Asia/Kolkata",
+        }),
       }
-    });
+    );
+
+    // ✅ 5. Process each trip asynchronously (position + push + allocation)
+   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+setImmediate(async () => {
+  try {
+    // ✅ Sort trips by creation time (or any unique order)
+    const sortedTrips = trips.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+    for (const trip of sortedTrips) {
+      try {
+        // 1. Get position based on type
+        const inQueueBookings = await TripBooking.aggregate([
+          { $match: { status: STATUS.INQUEUE, type: trip.type } },
+          { $sort: { createdAt: 1 } },
+          { $project: { _id: 1 } },
+        ]);
+
+        const position =
+          inQueueBookings.findIndex((b) => b._id.toString() === trip._id.toString()) + 1;
+
+        // 2. Send push notification
+        await sendTripBookingConfirmationPush({
+          tripId: trip.tripBookingId,
+          type: trip.type,
+          position,
+          destination: trip.destination,
+          bookingTime: formatDateTime(trip.date || new Date()),
+          contactNumber: trip.contactNumber,
+        });
+
+        // 3. Add a small delay before processing the next trip
+        await delay(10);
+
+      } catch (innerErr) {
+        console.error(`Error processing trip ${trip._id}:`, innerErr);
+      }
+    }
+  } catch (err) {
+    console.error("Error in trip processing:", err);
+  }
+});
   } catch (err) {
     console.error(err);
     next(err);
   }
 };
-
 
 // Get all trip bookings (optionally filter by company or status)
 export const getTripBookings = async (req, res, next) => {
@@ -78,23 +135,20 @@ export const getTripBookings = async (req, res, next) => {
   }
 };
 
-
-
 export const getAllTripBookings = async (req, res, next) => {
   try {
     let filter = {};
 
-    
-        const companyInfo = await getCompanyByPhoneNumber(req.body.phoneNumber);
-        if (!companyInfo.isValid || !companyInfo.companyId) {
-          return sendResponse(res, 200, "No company found for this phone number", {
-            isTruckAvailable: false,
-          });
-        }
+    const companyInfo = await getCompanyByPhoneNumber(req.body.phoneNumber);
+    if (!companyInfo.isValid || !companyInfo.companyId) {
+      return sendResponse(res, 200, "No company found for this phone number", {
+        isTruckAvailable: false,
+      });
+    }
 
     // ✅ Company ID filter
     if (
-     companyInfo.companyId &&
+      companyInfo.companyId &&
       mongoose.Types.ObjectId.isValid(companyInfo.companyId)
     ) {
       filter.companyId = companyInfo.companyId;
@@ -105,7 +159,6 @@ export const getAllTripBookings = async (req, res, next) => {
       filter.status = req.query.status;
     }
 
-    
     // ✅ Fetch Trips
     const trips = await TripBooking.find(filter).sort({ date: 1 });
 
@@ -145,7 +198,6 @@ export const getAllTripBookings = async (req, res, next) => {
     next(err);
   }
 };
-
 
 // Get single trip booking by ID
 export const getTripBookingById = async (req, res, next) => {
@@ -189,7 +241,10 @@ export const updateTripBooking = async (req, res, next) => {
     updateData.updatedUserId = req.user._id;
 
     // If status is 'cancelled', set cancelledUserId as well
-    if (updateData.status && updateData.status.toLowerCase() === STATUS.CANCELLED) {
+    if (
+      updateData.status &&
+      updateData.status.toLowerCase() === STATUS.CANCELLED
+    ) {
       updateData.cancelledUserId = req.user._id;
     }
 
@@ -212,7 +267,6 @@ export const updateTripBooking = async (req, res, next) => {
     next(err);
   }
 };
-
 
 export const getBookingsByMobileNumber = async (req, res, next) => {
   try {

@@ -1,4 +1,10 @@
+import axios from "axios";
+
 // utils/buildAllocationPayload.js
+const apiUrl =
+      "https://api.connectpanels.com/whatsapp-api/v1.0/customer/119041/bot/721911d2181a49af/template";
+
+      const WHATSAPP_AUTH = "e0c18806-0a56-4479-bdb7-995caa70793c-Ic2oMya";
 
 // Truck-side allocation message payload builder
 export function buildTruckAllocationPayload(
@@ -114,3 +120,64 @@ export function buildTripAllocationPayload(
     phoneNumber: phoneNumber,
   };
 }
+
+
+
+export const sendTripBookingConfirmationPush = async ({
+  tripId,
+  type,
+  position,
+  destination,
+  bookingTime,
+  contactNumber,
+}) => {
+  try {
+    // Build WhatsApp payload
+    const payload = {
+      payload: {
+        name: "tripbookingconfirmationmessage",
+        components: [
+          {
+            type: "body",
+            parameters: [
+              { type: "text", text: destination },
+              { type: "text", text: type },
+              { type: "text", text: position },
+              { type: "text", text:   bookingTime,
+ },
+              { type: "text", text: tripId },
+            ],
+          },
+          {
+            index: 0,
+            parameters: [
+              {
+                payload: `flow_0A62D2685BB94E17ADAD8B22EF0B7E01||data_trip_id=${tripId}`, 
+                type: "payload",
+              },
+            ],
+            sub_type: "quick_reply",
+            type: "button",
+          },
+        ],
+        language: { code: "en_US", policy: "deterministic" },
+        namespace: "29f53ec4_c8e3_4988_83fc_312d87b4bf8f",
+      },
+      phoneNumber: contactNumber,
+    };
+
+    // Send API Request
+    const response = await axios.post(apiUrl, payload, {
+      headers: {
+        Authorization: `Basic ${WHATSAPP_AUTH}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log("✅ WhatsApp Trip Confirmation Sent:", response.data);
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error("❌ WhatsApp Trip Confirmation Failed:", error.response?.data || error.message);
+    return { success: false, error: error.response?.data || error.message };
+  }
+};
