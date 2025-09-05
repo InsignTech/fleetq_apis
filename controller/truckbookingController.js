@@ -130,15 +130,41 @@ export const createTruckBooking = async (req, res, next) => {
       createdUserId: req?.user?._id || null,
     });
 
+    const inQueueBookings = await TruckBooking.aggregate([
+      {
+        $match: { status: STATUS.INQUEUE },
+      },
+      {
+        $lookup: {
+          from: "trucks", // 🚨 must match Mongo collection name
+          localField: "truckId",
+          foreignField: "_id",
+          as: "truck",
+        },
+      },
+      { $unwind: "$truck" },
+      { $match: { "truck.type": truckExist.type } },
+      { $sort: { createdAt: 1 } },
+      { $project: { _id: 1 } },
+    ]);
+
+    const position =
+      inQueueBookings.findIndex(
+        (b) => b._id.toString() === booking._id.toString()
+      ) + 1;
+
     // Respond immediately
     sendResponse(res, 201, "Truck booking created successfully", {
       bookingStatus: true,
+      position: position,
       bookingId: booking.truckBookingId,
-      bookingTime: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+      bookingTime: new Date().toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+      }),
     });
 
     // Trigger allocation in the background
-   // setImmediate(() => allocateTruckAndTrip({ truckBooking: booking }));
+    // setImmediate(() => allocateTruckAndTrip({ truckBooking: booking }));
   } catch (err) {
     console.error(err);
     return sendResponse(res, 500, "Error Occurred", { bookingStatus: false });
