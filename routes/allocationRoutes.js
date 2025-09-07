@@ -5,6 +5,7 @@ import {
   getAllocationById,
   updateAllocation,
   allocateTrucksToTrips,
+  getPaymentData,
 } from "../controller/allocationController.js";
 
 const router = express.Router();
@@ -23,5 +24,7 @@ router.put("/:id", updateAllocation);
 
 //allocate trucks
 router.get('/allocate', allocateTrucksToTrips)
+
+router.post('/get-payment-data',getPaymentData)
 
 export default router;

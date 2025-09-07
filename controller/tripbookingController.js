@@ -42,7 +42,7 @@ export const createTripBooking = async (req, res, next) => {
       date: date ? new Date(date) : new Date(),
       status: STATUS.INQUEUE,
       rate,
-      createdUserId: req.user._id,
+      createdUserId: req?.user?._id ,
       remarks,
       contactName,
       contactNumber,

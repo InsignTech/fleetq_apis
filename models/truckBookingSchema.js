@@ -44,14 +44,16 @@ const truckBookingSchema = new Schema(
       trim: true,
       required: true,
     },
+    paid:{
+      type:Boolean,
+      default: false
+    },
     createdUserId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
     },
     updatedUserId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
     },
     cancelledUserId: {
       type: mongoose.Schema.Types.ObjectId,

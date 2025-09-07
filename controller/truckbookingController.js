@@ -87,11 +87,11 @@ const sendTripNotification = async (
 
 export const createTruckBooking = async (req, res, next) => {
   try {
-    const { companyId, truckId, date, contactName, contactNumber, remarks } =
+    const { companyId, truckId, date, contactName, contactNumber, phoneNumber, remarks } =
       req.body;
 
     // Validate input
-    if (!companyId || !truckId || !contactName || !contactNumber) {
+    if (!companyId || !truckId || !contactName || !contactNumber || !phoneNumber) {
       return sendResponse(res, 400, "Missing required fields", {
         bookingStatus: false,
       });
@@ -129,6 +129,7 @@ export const createTruckBooking = async (req, res, next) => {
       contactNumber,
       remarks,
       createdUserId: req?.user?._id || null,
+      createdBy: phoneNumber
     });
 
     const inQueueBookings = await TruckBooking.aggregate([
@@ -137,7 +138,7 @@ export const createTruckBooking = async (req, res, next) => {
       },
       {
         $lookup: {
-          from: "trucks", // 🚨 must match Mongo collection name
+          from: "trucks", 
           localField: "truckId",
           foreignField: "_id",
           as: "truck",
@@ -162,8 +163,12 @@ export const createTruckBooking = async (req, res, next) => {
       bookingTime: formatDateTime(booking.date)
     });
 
+    truckExist.type
     // Trigger allocation in the background
-   //  setImmediate(() => allocateTruckAndTrip({ truckBooking: booking }));
+    if(process.env.AutoAllocation == "true"){
+       booking.type = truckExist.type;
+      setImmediate(() => allocateTruckAndTrip({ truckBooking: booking }));
+    }
   } catch (err) {
     console.error(err);
     return sendResponse(res, 500, "Error Occurred", { bookingStatus: false });

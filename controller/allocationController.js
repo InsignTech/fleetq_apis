@@ -4,10 +4,8 @@ import { STATUS } from "../utils/constants/statusEnum.js";
 import { sendResponse } from "../utils/responseHandler.js";
 import TruckBooking from "../models/truckBookingSchema.js";
 import TripBooking from "../models/tripbookingSchema.js"; // Assuming you have a Trip model
-// import { sendTruckNotification, sendTripNotification } from "../utils/notifications.js";
-
-// import { sendTruckNotification, sendTripNotification } from "./truckbookingController.js"
-
+import { sendTruckNotificationForAllocationPayment } from "../flows/buildAllocationPayload.js";
+import Payment from "../models/paymentSchema.js";
 
 // Create allocation
 export const createAllocation = async (req, res, next) => {
@@ -154,68 +152,56 @@ export const updateAllocation = async (req, res, next) => {
 };
 
 export const allocateTrucksToTrips = async (req, res, next) => {
-//   try {
-//     // 1. Fetch all INQUEUE TruckBookings sorted FIFO (oldest first)
-//     const truckBookings = await TruckBooking.find({
-//       status: STATUS.INQUEUE,
-//     }).sort({ createdAt: 1 });
-
-//     // 2. Fetch all TripBookings that are unallocated (or in some 'pending' status) sorted FIFO
-//     const tripBookings = await TripBooking.find({
-//       status: STATUS.INQUEUE,
-//     }).sort({ createdAt: 1 });
-
-//     // We'll allocate truckBookings to tripBookings by matching 'type'
-//     // Assuming truckBooking and tripBooking have a 'type' field (20 or 40)
-
-//     for (const truckBooking of truckBookings) {
-//       // Find a trip booking with matching type
-//       const matchedTripIndex = tripBookings.findIndex(
-//         (trip) => trip.type === truckBooking.type
-//       );
-
-//       if (matchedTripIndex === -1) {
-//         // No matching trip for this truck booking, skip
-//         continue;
-//       }
-
-//       const tripBooking = tripBookings[matchedTripIndex];
-
-//       // Create allocation record linking truckBooking and tripBooking
-//       const allocation = new Allocation({
-//         truckBookingId: truckBooking._id,
-//         tripBookingId: tripBooking._id,
-//         status: STATUS.ALLOCATED,
-//         createdBy: req.user._id,
-//         allocatedOn: new Date(),
-//         // any other fields you want to store
-//       });
-
-//       await allocation.save();
-
-//       // Update statuses so they don't get allocated again
-//       truckBooking.status = STATUS.INPROGRESS;
-//       truckBooking.updatedUserId = req.user._id
-//       await truckBooking.save();
-
-//       tripBooking.status = STATUS.INPROGRESS;
-//        truckBooking.updatedUserId = req.user._id
-//       await tripBooking.save();
-
-//       // Remove allocated tripBooking from the array so it's not matched again
-//       tripBookings.splice(matchedTripIndex, 1);
-//     }
-
-//     return res.status(200).json({
-//       success: true,
-//       message: "Allocation completed successfully",
-//     });
-//   } catch (err) {
-//     next(err);
-//   }
-// };
-
-}
+  //   try {
+  //     // 1. Fetch all INQUEUE TruckBookings sorted FIFO (oldest first)
+  //     const truckBookings = await TruckBooking.find({
+  //       status: STATUS.INQUEUE,
+  //     }).sort({ createdAt: 1 });
+  //     // 2. Fetch all TripBookings that are unallocated (or in some 'pending' status) sorted FIFO
+  //     const tripBookings = await TripBooking.find({
+  //       status: STATUS.INQUEUE,
+  //     }).sort({ createdAt: 1 });
+  //     // We'll allocate truckBookings to tripBookings by matching 'type'
+  //     // Assuming truckBooking and tripBooking have a 'type' field (20 or 40)
+  //     for (const truckBooking of truckBookings) {
+  //       // Find a trip booking with matching type
+  //       const matchedTripIndex = tripBookings.findIndex(
+  //         (trip) => trip.type === truckBooking.type
+  //       );
+  //       if (matchedTripIndex === -1) {
+  //         // No matching trip for this truck booking, skip
+  //         continue;
+  //       }
+  //       const tripBooking = tripBookings[matchedTripIndex];
+  //       // Create allocation record linking truckBooking and tripBooking
+  //       const allocation = new Allocation({
+  //         truckBookingId: truckBooking._id,
+  //         tripBookingId: tripBooking._id,
+  //         status: STATUS.ALLOCATED,
+  //         createdBy: req.user._id,
+  //         allocatedOn: new Date(),
+  //         // any other fields you want to store
+  //       });
+  //       await allocation.save();
+  //       // Update statuses so they don't get allocated again
+  //       truckBooking.status = STATUS.INPROGRESS;
+  //       truckBooking.updatedUserId = req.user._id
+  //       await truckBooking.save();
+  //       tripBooking.status = STATUS.INPROGRESS;
+  //        truckBooking.updatedUserId = req.user._id
+  //       await tripBooking.save();
+  //       // Remove allocated tripBooking from the array so it's not matched again
+  //       tripBookings.splice(matchedTripIndex, 1);
+  //     }
+  //     return res.status(200).json({
+  //       success: true,
+  //       message: "Allocation completed successfully",
+  //     });
+  //   } catch (err) {
+  //     next(err);
+  //   }
+  // };
+};
 
 /**
  * Handles automatic allocation of trucks and trips asynchronously.
@@ -223,30 +209,52 @@ export const allocateTrucksToTrips = async (req, res, next) => {
  * @param {Object} [options.truckBooking] - Newly created truck booking (optional)
  * @param {Object} [options.tripBooking] - Newly created trip booking (optional)
  */
-export const allocateTruckAndTrip = async ({ truckBooking = null, tripBooking = null }) => {
+export const allocateTruckAndTrip = async ({
+  truckBooking = null,
+  tripBooking = null,
+}) => {
   try {
+     let allocation;
+      let trip;
+      let truck;
     if (truckBooking) {
       // Find a pending trip for this truck
       const matchingTrip = await TripBooking.findOne({
         type: truckBooking.type,
         status: STATUS.INQUEUE,
-      }).sort({ createdAt: 1 });
-
+      }).sort({ createdAt: 1, _id: 1 });
+     
       if (matchingTrip) {
-        await Allocation.create({
+        allocation = await Allocation.create({
           truckBookingId: truckBooking._id,
           tripBookingId: matchingTrip._id,
           status: STATUS.INPROGRESS,
         });
 
-        await TruckBooking.findByIdAndUpdate(truckBooking._id, { status: STATUS.INPROGRESS });
-        await TripBooking.findByIdAndUpdate(matchingTrip._id, { status: STATUS.INPROGRESS });
+        truck =  await TruckBooking.findByIdAndUpdate(truckBooking._id, {
+          status: STATUS.INPROGRESS,
+        });
+       trip =  await TripBooking.findByIdAndUpdate(matchingTrip._id, {
+          status: STATUS.INPROGRESS,
+        });
 
         // Send notifications asynchronously
-        // sendTruckNotification(truckBooking, matchingTrip);
+        if (!truck.createdBy) {
+          console.log("Truck created phone number missing");
+          return;
+        }
+        sendTruckNotificationForAllocationPayment(
+          allocation?._id,
+          String(trip?.rate || 0),
+          truck?.createdBy,
+          trip.destination || "",
+          truck?.truckBookingId
+        );
         // sendTripNotification(matchingTrip, truckBooking);
 
-        console.log(`✅ Truck ${truckBooking._id} allocated to Trip ${matchingTrip._id}`);
+        console.log(
+          `✅ Truck ${truckBooking._id} allocated to Trip ${matchingTrip._id}`
+        );
       }
     }
 
@@ -255,26 +263,108 @@ export const allocateTruckAndTrip = async ({ truckBooking = null, tripBooking = 
       const availableTruck = await TruckBooking.findOne({
         type: tripBooking.type,
         status: STATUS.INQUEUE,
-      }).sort({ createdAt: 1 });
+      }).sort({ createdAt: 1, _id: 1 });
 
       if (availableTruck) {
-        await Allocation.create({
+       allocation =  await Allocation.create({
           truckBookingId: availableTruck._id,
           tripBookingId: tripBooking._id,
           status: STATUS.INPROGRESS,
         });
 
-        await TruckBooking.findByIdAndUpdate(availableTruck._id, { status: STATUS.INPROGRESS });
-        await TripBooking.findByIdAndUpdate(tripBooking._id, { status: STATUS.INPROGRESS });
+       truck = await TruckBooking.findByIdAndUpdate(availableTruck._id, {
+          status: STATUS.INPROGRESS,
+        });
+       trip =  await TripBooking.findByIdAndUpdate(tripBooking._id, {
+          status: STATUS.INPROGRESS,
+        });
 
-        // Send notifications asynchronously
-        // sendTruckNotification(availableTruck, tripBooking);
+        // Send notifications to truck for payment
+         if (!truck.createdBy) {
+          console.log("Truck created phone number missing");
+          return;
+        }
+        sendTruckNotificationForAllocationPayment(
+          allocation?._id,
+          String(trip?.rate || 0),
+          truck?.createdBy,
+          trip.destination || "",
+          truck?.truckBookingId
+        );
         // sendTripNotification(tripBooking, availableTruck);
 
-        console.log(`✅ Trip ${tripBooking._id} allocated to Truck ${availableTruck._id}`);
+        console.log(
+          `✅ Trip ${tripBooking._id} allocated to Truck ${availableTruck._id}`
+        );
       }
     }
   } catch (error) {
     console.error("❌ Error during allocation:", error.message);
+  }
+};
+
+
+
+export const getPaymentData = async (req, res, next) => {
+  try {
+    const { allocationId, orderId, status, createdBy } = req.body;
+
+    // 1. Find allocation and populate tripBookingId to get amount
+    const allocation = await Allocation.findById(allocationId).populate("tripBookingId");
+    if (!allocation) {
+      return res.status(404).json({ message: "Allocation not found" });
+    }
+
+    const trip = allocation.tripBookingId;
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found in allocation" });
+    }
+
+    // 2. Get amount from trip (assuming 'rate' is the amount)
+    const amount = trip.rate;
+
+    // 3. Create payment record
+    const payment = await Payment.create({
+      allocationId,
+      orderId: orderId || "",
+      amount: String(amount),
+      status: status || "success",
+      createdBy: createdBy || "",
+    });
+console.log(payment)
+    let paymentData = {
+       "PaymentData": [
+    {
+      "name": "Platform Fee",
+      "item_price": amount,
+      "quantity": "1",
+      "country_of_origin": "India",
+      "importer_name": "",
+      "importer_address": {
+        "address_line1": "",
+        "address_line2": "",
+        "city": "",
+        "postal_code": "",
+        "country_code": ""
+      },
+      "description": "Platform Fee",
+      "discounted_price": "",
+      "currency": "INR"
+    }
+  ]
+    }
+
+    console.log(payment)
+    let response = {
+      paymentData : paymentData,
+      paymentId : payment?._id
+    }
+    // 4. Respond with payment info
+    res.status(201).json(
+    response
+    );
+     return sendResponse(res, 201, "Company created successfully", response);
+  } catch (err) {
+    next(err);
   }
 };
