@@ -356,7 +356,7 @@ console.log(payment)
 
     console.log(payment)
     let response = {
-      paymentData : paymentData,
+       paymentData,
       paymentId : payment?._id
     }
     // 4. Respond with payment info
