@@ -332,8 +332,7 @@ export const getPaymentData = async (req, res, next) => {
       createdBy: createdBy || "",
     });
 console.log(payment)
-    let paymentData = {
-       "PaymentData": [
+    let paymentData =  [
     {
       "name": "Platform Fee",
       "item_price": amount,
@@ -352,7 +351,7 @@ console.log(payment)
       "currency": "INR"
     }
   ]
-    }
+    
 
     console.log(payment)
     let response = {
