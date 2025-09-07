@@ -9,7 +9,7 @@ const paymentSchema = new Schema(
       ref: "TripBooking",
       required: true,
     },
-    orderId: {
+    paymentIdExternal: {
       type: String,
     },
     amount: {

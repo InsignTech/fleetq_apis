@@ -96,6 +96,9 @@ setImmediate(async () => {
           contactNumber: phoneNumber,
         });
 
+            if(process.env.AutoAllocation == "true"){
+              setImmediate(() => allocateTruckAndTrip({ tripBooking: trip }));
+            }
         // 3. Add a small delay before processing the next trip
         await delay(10);
 

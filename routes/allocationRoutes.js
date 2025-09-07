@@ -6,6 +6,7 @@ import {
   updateAllocation,
   allocateTrucksToTrips,
   getPaymentData,
+  paymentSuccess,
 } from "../controller/allocationController.js";
 
 const router = express.Router();
@@ -26,5 +27,7 @@ router.put("/:id", updateAllocation);
 router.get('/allocate', allocateTrucksToTrips)
 
 router.post('/get-payment-data',getPaymentData)
+
+router.post('/initiate',paymentSuccess)
 
 export default router;

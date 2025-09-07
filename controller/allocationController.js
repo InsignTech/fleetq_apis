@@ -214,16 +214,16 @@ export const allocateTruckAndTrip = async ({
   tripBooking = null,
 }) => {
   try {
-     let allocation;
-      let trip;
-      let truck;
+    let allocation;
+    let trip;
+    let truck;
     if (truckBooking) {
       // Find a pending trip for this truck
       const matchingTrip = await TripBooking.findOne({
         type: truckBooking.type,
         status: STATUS.INQUEUE,
       }).sort({ createdAt: 1, _id: 1 });
-     
+
       if (matchingTrip) {
         allocation = await Allocation.create({
           truckBookingId: truckBooking._id,
@@ -231,10 +231,10 @@ export const allocateTruckAndTrip = async ({
           status: STATUS.INPROGRESS,
         });
 
-        truck =  await TruckBooking.findByIdAndUpdate(truckBooking._id, {
+        truck = await TruckBooking.findByIdAndUpdate(truckBooking._id, {
           status: STATUS.INPROGRESS,
         });
-       trip =  await TripBooking.findByIdAndUpdate(matchingTrip._id, {
+        trip = await TripBooking.findByIdAndUpdate(matchingTrip._id, {
           status: STATUS.INPROGRESS,
         });
 
@@ -261,26 +261,30 @@ export const allocateTruckAndTrip = async ({
     if (tripBooking) {
       // Find a pending truck for this trip
       const availableTruck = await TruckBooking.findOne({
-        type: tripBooking.type,
         status: STATUS.INQUEUE,
-      }).sort({ createdAt: 1, _id: 1 });
+      })
+        .populate({
+          path: "truckId",
+          match: { type: tripBooking.type }, // Filter trucks by type
+        })
+        .sort({ createdAt: 1, _id: 1 });
 
       if (availableTruck) {
-       allocation =  await Allocation.create({
+        allocation = await Allocation.create({
           truckBookingId: availableTruck._id,
           tripBookingId: tripBooking._id,
           status: STATUS.INPROGRESS,
         });
 
-       truck = await TruckBooking.findByIdAndUpdate(availableTruck._id, {
+        truck = await TruckBooking.findByIdAndUpdate(availableTruck._id, {
           status: STATUS.INPROGRESS,
         });
-       trip =  await TripBooking.findByIdAndUpdate(tripBooking._id, {
+        trip = await TripBooking.findByIdAndUpdate(tripBooking._id, {
           status: STATUS.INPROGRESS,
         });
 
         // Send notifications to truck for payment
-         if (!truck.createdBy) {
+        if (!truck.createdBy) {
           console.log("Truck created phone number missing");
           return;
         }
@@ -303,14 +307,14 @@ export const allocateTruckAndTrip = async ({
   }
 };
 
-
-
 export const getPaymentData = async (req, res, next) => {
   try {
     const { allocationId, orderId, status, createdBy } = req.body;
 
     // 1. Find allocation and populate tripBookingId to get amount
-    const allocation = await Allocation.findById(allocationId).populate("tripBookingId");
+    const allocation = await Allocation.findById(allocationId).populate(
+      "tripBookingId"
+    );
     if (!allocation) {
       return res.status(404).json({ message: "Allocation not found" });
     }
@@ -331,38 +335,103 @@ export const getPaymentData = async (req, res, next) => {
       status: status || "success",
       createdBy: createdBy || "",
     });
-console.log(payment)
-    let paymentData =  [
-    {
-      "name": "Platform Fee",
-      "item_price": amount,
-      "quantity": "1",
-      "country_of_origin": "India",
-      "importer_name": "",
-      "importer_address": {
-        "address_line1": "",
-        "address_line2": "",
-        "city": "",
-        "postal_code": "",
-        "country_code": ""
+    console.log(payment);
+    let paymentData = [
+      {
+        name: "Platform Fee",
+        item_price: amount,
+        quantity: "1",
+        country_of_origin: "India",
+        importer_name: "",
+        importer_address: {
+          address_line1: "",
+          address_line2: "",
+          city: "",
+          postal_code: "",
+          country_code: "",
+        },
+        description: "Platform Fee",
+        discounted_price: "",
+        currency: "INR",
       },
-      "description": "Platform Fee",
-      "discounted_price": "",
-      "currency": "INR"
-    }
-  ]
-    
+    ];
 
-    console.log(payment)
+    console.log(payment);
     let response = {
-       paymentData,
-      paymentId : payment?._id
-    }
+      paymentData,
+      paymentId: payment?._id,
+    };
     // 4. Respond with payment info
-    res.status(201).json(
-    response
+    res.status(201).json(response);
+    return sendResponse(res, 201, "Company created successfully", response);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const paymentSuccess = async (req, res, next) => {
+  try {
+    const { paymentId, paymentIdExternal, phoneNumber } = req.body;
+
+    // 1. Find and update payment status
+    const payment = await Payment.findByIdAndUpdate(
+      paymentId,
+      { status: "success" },
+      { new: true }
     );
-     return sendResponse(res, 201, "Company created successfully", response);
+    if (!payment) {
+      return res
+        .status(200)
+        .json({ status: "false", message: "Payment not found" });
+    }
+
+    // 2. Get allocationId from payment
+    const allocationId = payment.allocationId;
+    if (!allocationId) {
+      return res
+        .status(200)
+        .json({ status: "false", message: "No allocationId in payment" });
+    }
+
+    // 3. Find allocation and get truckBookingId, tripBookingId
+    const allocation = await Allocation.findById(allocationId);
+    if (!allocation) {
+      return res.status(404).json({ message: "Allocation not found" });
+    }
+    const { truckBookingId, tripBookingId } = allocation;
+
+    // 4. Fetch truck and trip details
+    const truckBooking = await TruckBooking.findById(truckBookingId);
+    const tripBooking = await TripBooking.findById(tripBookingId);
+
+    if (!truckBooking || !tripBooking) {
+      return res
+        .status(200)
+        .json({ status: "false", message: "Truck or Trip booking not found" });
+    }
+
+    // 5. Send WhatsApp API messages
+    // You may need to adjust the arguments as per your flows/buildAllocationPayload.js
+    await sendTruckNotificationForAllocationPayment(
+      allocationId,
+      String(tripBooking.rate || 0),
+      truckBooking.createdBy,
+      tripBooking.destination || "",
+      truckBooking.truckBookingId
+    );
+
+    await sendTripNotificationForAllocationPayment(
+      allocationId,
+      String(tripBooking.rate || 0),
+      tripBooking.createdBy,
+      tripBooking.destination || "",
+      tripBooking.tripBookingId
+    );
+
+    return res.status(200).json({
+      message: "Payment marked as success and notifications sent",
+      status: "true",
+    });
   } catch (err) {
     next(err);
   }
