@@ -331,7 +331,7 @@ export const getPaymentData = async (req, res, next) => {
     const payment = await Payment.create({
       allocationId,
       orderId: orderId || "",
-      amount: String(amount),
+      amount: String(2),
       status: status || "success",
       createdBy: createdBy || "",
     });
@@ -339,7 +339,7 @@ export const getPaymentData = async (req, res, next) => {
     let paymentData = [
       {
         name: "Platform Fee",
-        item_price: amount,
+        item_price: 2,
         quantity: "1",
         country_of_origin: "India",
         importer_name: "",
