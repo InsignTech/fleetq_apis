@@ -19,71 +19,7 @@ import { formatDateTime } from "../utils/formatDateTime.js";
 const apiUrl =
   "https://api.connectpanels.com/whatsapp-api/v1.0/customer/119041/bot/721911d2181a49af/template";
 
-// Send Truck-side Notification
-const sendTruckNotification = async (
-  truck,
-  trip,
-  contactName,
-  contactNumber,
-  phoneNumber
-) => {
-  const payload = buildTruckAllocationPayload(
-    truck.registrationNumber,
-    trip.partyName,
-    trip.destination,
-    trip.rate,
-    contactName,
-    contactNumber,
-    phoneNumber
-  );
 
-  try {
-    const response = await axios.post(apiUrl, payload, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Basic e0c18806-0a56-4479-bdb7-995caa70793c-Ic2oMya",
-      },
-    });
-    console.log(`✅ Truck notification sent: ${truck.registrationNumber}`);
-    return response.data;
-  } catch (error) {
-    console.error(`❌ Truck notification failed`, error.message);
-  }
-};
-
-// Send Trip-side Notification
-const sendTripNotification = async (
-  trip,
-  truck,
-  companyName,
-  contactName,
-  contactNumber,
-  phoneNumber
-) => {
-  const payload = buildTripAllocationPayload(
-    trip.destination,
-    trip.rate,
-    companyName,
-    truck.registrationNumber,
-    truck.type,
-    contactName,
-    contactNumber,
-    phoneNumber
-  );
-
-  try {
-    const response = await axios.post(apiUrl, payload, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Basic e0c18806-0a56-4479-bdb7-995caa70793c-Ic2oMya",
-      },
-    });
-    console.log(`✅ Trip notification sent: ${trip.destination}`);
-    return response.data;
-  } catch (error) {
-    console.error(`❌ Trip notification failed`, error.message);
-  }
-};
 
 export const createTruckBooking = async (req, res, next) => {
   try {
@@ -449,9 +385,6 @@ export const pushAvailableTrucks = async (req, res, next) => {
 
 export const SearchAndpushAvailableTrucks = async (req, res, next) => {
   try {
-    console.log("hii");
-    console.log("req.body----------------------------------------------------");
-    console.log(req.body);
     const { phoneNumber, containerSize, truckNumber } = req.body || {};
 
     // Validation
