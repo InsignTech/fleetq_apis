@@ -332,7 +332,6 @@ export const getPaymentData = async (req, res, next) => {
       allocationId,
       orderId: orderId || "",
       amount: String(2),
-      status: status || "success",
       createdBy: createdBy || "",
     });
     console.log(payment);
