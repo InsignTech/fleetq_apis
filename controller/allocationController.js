@@ -4,7 +4,7 @@ import { STATUS } from "../utils/constants/statusEnum.js";
 import { sendResponse } from "../utils/responseHandler.js";
 import TruckBooking from "../models/truckBookingSchema.js";
 import TripBooking from "../models/tripbookingSchema.js"; // Assuming you have a Trip model
-import { sendTruckNotificationForAllocationPayment } from "../flows/buildAllocationPayload.js";
+import { sendTripAllocationNotification, sendTruckNotificationForAllocation, sendTruckNotificationForAllocationPayment } from "../flows/buildAllocationPayload.js";
 import Payment from "../models/paymentSchema.js";
 
 // Create allocation
@@ -401,7 +401,7 @@ export const paymentSuccess = async (req, res, next) => {
     const { truckBookingId, tripBookingId } = allocation;
 
     // 4. Fetch truck and trip details
-    const truckBooking = await TruckBooking.findById(truckBookingId);
+    const truckBooking = await TruckBooking.findById(truckBookingId).populate('truckId');
     const tripBooking = await TripBooking.findById(tripBookingId);
 
     if (!truckBooking || !tripBooking) {
@@ -412,21 +412,37 @@ export const paymentSuccess = async (req, res, next) => {
 
     // 5. Send WhatsApp API messages
     // You may need to adjust the arguments as per your flows/buildAllocationPayload.js
-    await sendTruckNotificationForAllocationPayment(
-      allocationId,
-      String(tripBooking.rate || 0),
-      truckBooking.createdBy,
-      tripBooking.destination || "",
-      truckBooking.truckBookingId
-    );
 
-    await sendTripNotificationForAllocationPayment(
-      allocationId,
-      String(tripBooking.rate || 0),
-      tripBooking.createdBy,
-      tripBooking.destination || "",
-      tripBooking.tripBookingId
-    );
+  
+    let contactPerson = ""+tripBooking.contactName+" "+tripBooking.contactNumber  
+await sendTruckNotificationForAllocation(
+  truckBooking?.truckId?.registrationNumber || " ",         
+  tripBooking.createdBy || "",            // 2. Forwarder/Shipper
+  tripBooking.destination || "",        
+  String(tripBooking.rate || 0),         
+  contactPerson || "" ,
+  truckBooking.truckBookingId || "",
+  truckBooking.createdBy || truckBooking.contactNumber     
+);
+
+
+ 
+ 
+
+
+
+  await sendTripAllocationNotification(
+  tripBooking.destination || "",  
+  String(tripBooking.rate || 0),   
+  truckBooking.createdBy || "",       
+  truckBooking?.truckId?.registrationNumber || " ",       
+  truckBooking?.truckId?.type || " ",    
+  truckBooking.contactName || "",  
+  truckBooking.contactNumber || "" ,
+  tripBooking.tripBookingId || "",
+ tripBooking.createdBy || tripBooking.contactNumber
+);
+
 
     return res.status(200).json({
       message: "Payment marked as success and notifications sent",

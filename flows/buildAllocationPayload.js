@@ -271,3 +271,176 @@ export async function sendTruckNotificationForAllocationPayment(
    // throw error; // Re-throw to handle it upstream if needed
   }
 }
+
+
+export async function sendTruckNotificationForAllocation(
+  truckDetails,    
+  forwarder,      
+  destination,    
+  tripRate,      
+  contactPerson,  
+  truckBookingId,
+  phoneNumber
+) {
+  try {
+    const payload = {
+      payload: {
+        name: "allocation_message", 
+        components: [
+          {
+            type: "body",
+            parameters: [
+              { type: "text", text: truckDetails },        // {{1}} Truck Details
+              { type: "text", text: forwarder },           // {{2}} Forwarder/Shipper
+              { type: "text", text: destination },         // {{3}} Destination
+              { type: "text", text: String(tripRate) },    // {{4}} Trip Rate
+              { type: "text", text: contactPerson },       // {{5}} Contact Person
+            ],
+          },
+          {
+            index: 0,
+            parameters: [
+              {
+                payload: `flow_1F987D6BA011447BBF872968242A4F53||data_truck_booking_id=${truckBookingId}`,
+                type: "payload",
+              },
+            ],
+            sub_type: "quick_reply",
+            type: "button",
+          },
+
+           {
+            index: 1,
+            parameters: [
+              {
+                payload: `flow_60C3653535974B6AADA59CE5FB6B1692||data_truck_booking_id=${truckBookingId}`,
+                type: "payload",
+              },
+            ],
+            sub_type: "quick_reply",
+            type: "button",
+          },
+        ],
+        language: {
+          code: "en_US",
+          policy: "deterministic",
+        },
+        namespace: "29f53ec4_c8e3_4988_83fc_312d87b4bf8f",
+      },
+      phoneNumber: phoneNumber,
+    };
+
+    console.log("🔹 Sending Truck Allocation WhatsApp Payload:", JSON.stringify(payload, null, 2));
+
+    const response = await axios.post(apiUrl, payload, {
+      headers: {
+        Authorization: `Basic ${WHATSAPP_AUTH}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log("✅ Allocation Notification Sent Successfully!");
+    console.log("🔹 Status:", response.status);
+    console.log("🔹 Response Data:", JSON.stringify(response.data, null, 2));
+
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error Sending Allocation Notification");
+
+    if (error.response) {
+      console.error("🔹 Status:", error.response.status);
+      console.error("🔹 Error Data:", JSON.stringify(error.response.data, null, 2));
+    } else {
+      console.error("🔹 Error Message:", error.message);
+    }
+  }
+}
+
+
+
+export async function sendTripAllocationNotification(
+  destination ,       // e.g. "Bangalore Warehouse"
+  tripRate,          // e.g. 12000
+  transporter ,       // e.g. "ABC Logistics"
+  truckDetails ,      // e.g. "KA-09-7788"
+  truckType ,         // e.g. "14W Truck"
+  contactName ,       // e.g. "Ramesh Kumar"
+  contactPhone ,      // e.g. "9876543210"
+  tripId,
+  phoneNumber 
+) {
+  console.log(phoneNumber)
+  try {
+    const payload = {
+      payload: {
+        name: "trip_allocation_confirmed",
+        components: [
+          {
+            type: "body",
+            parameters: [
+              { type: "text", text: destination },            // {{1}}
+              { type: "text", text: String(tripRate) },       // {{2}}
+              { type: "text", text: transporter },            // {{3}}
+              { type: "text", text: truckDetails },           // {{4}}
+              { type: "text", text: truckType },              // {{5}}
+              { type: "text", text: contactName },            // {{6}}
+              { type: "text", text: contactPhone },           // {{7}}
+            ],
+          },
+          {
+            index: 0,
+            parameters: [
+              {
+                payload: `flow_4839205846564DA0927D70330A23C1BF||data_trip_booking_id=${tripId}`,
+                type: "payload",
+              },
+            ],
+            sub_type: "quick_reply",
+            type: "button",
+          },
+          {
+            index: 1,
+            parameters: [
+              {
+                payload: `flow_0A62D2685BB94E17ADAD8B22EF0B7E01||data_trip_booking_id=${tripId}`,
+                type: "payload",
+              },
+            ],
+            sub_type: "quick_reply",
+            type: "button",
+          },
+        ],
+        language: {
+          code: "en_US",
+          policy: "deterministic",
+        },
+        namespace: "29f53ec4_c8e3_4988_83fc_312d87b4bf8f",
+      },
+      phoneNumber: phoneNumber,
+    };
+
+    console.log("🔹 Sending Trip WhatsApp Payload:", JSON.stringify(payload, null, 2));
+
+    const response = await axios.post(apiUrl, payload, {
+      headers: {
+        Authorization: `Basic ${WHATSAPP_AUTH}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log("✅ Trip Notification Sent Successfully!");
+    console.log("🔹 Status:", response.status);
+    console.log("🔹 Response Data:", JSON.stringify(response.data, null, 2));
+
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error Sending Trip Notification");
+
+    if (error.response) {
+      console.error("🔹 Status:", error.response.status);
+      console.error("🔹 Error Data:", JSON.stringify(error.response.data, null, 2));
+    } else {
+      console.error("🔹 Error Message:", error.message);
+    }
+  }
+}
