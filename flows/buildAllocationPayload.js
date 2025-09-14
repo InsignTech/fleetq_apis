@@ -277,10 +277,12 @@ export async function sendTruckNotificationForAllocation(
   truckDetails,    
   forwarder,      
   destination,    
-  tripRate,      
-  contactPerson,  
+  tripRate,    
   truckBookingId,
-  phoneNumber
+  phoneNumber,
+  type,
+  contactName,
+  contactNumber
 ) {
   try {
     const payload = {
@@ -291,26 +293,17 @@ export async function sendTruckNotificationForAllocation(
             type: "body",
             parameters: [
               { type: "text", text: truckDetails },        // {{1}} Truck Details
+             { type: "text", text: type }, 
               { type: "text", text: forwarder },           // {{2}} Forwarder/Shipper
               { type: "text", text: destination },         // {{3}} Destination
               { type: "text", text: String(tripRate) },    // {{4}} Trip Rate
-              { type: "text", text: contactPerson },       // {{5}} Contact Person
+              { type: "text", text: contactName },
+              { type: "text", text: contactNumber },        // {{5}} Contact Person
             ],
           },
-          {
-            index: 0,
-            parameters: [
-              {
-                payload: `flow_1F987D6BA011447BBF872968242A4F53||data_truck_booking_id=${truckBookingId}`,
-                type: "payload",
-              },
-            ],
-            sub_type: "quick_reply",
-            type: "button",
-          },
-
+          
            {
-            index: 1,
+            index: 0,
             parameters: [
               {
                 payload: `flow_60C3653535974B6AADA59CE5FB6B1692||data_truck_booking_id=${truckBookingId}`,
@@ -387,19 +380,9 @@ export async function sendTripAllocationNotification(
               { type: "text", text: contactPhone },           // {{7}}
             ],
           },
+        
           {
             index: 0,
-            parameters: [
-              {
-                payload: `flow_4839205846564DA0927D70330A23C1BF||data_trip_Id=${tripId}`,
-                type: "payload",
-              },
-            ],
-            sub_type: "quick_reply",
-            type: "button",
-          },
-          {
-            index: 1,
             parameters: [
               {
                 payload: `flow_0A62D2685BB94E17ADAD8B22EF0B7E01||data_trip_Id=${tripId}`,

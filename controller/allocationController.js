@@ -422,15 +422,17 @@ export const paymentSuccess = async (req, res, next) => {
     // You may need to adjust the arguments as per your flows/buildAllocationPayload.js
 
   
-    let contactPerson = ""+tripBooking.contactName+" "+tripBooking.contactNumber  
+     
 await sendTruckNotificationForAllocation(
   truckBooking?.truckId?.registrationNumber || " ",         
   tripBooking.createdBy || "",            // 2. Forwarder/Shipper
   tripBooking.destination || "",        
-  String(tripBooking.rate || 0),         
-  contactPerson || "" ,
+  String(tripBooking.rate || 0),  
   truckBooking.truckBookingId || "",
-  truckBooking.createdBy || truckBooking.contactNumber     
+  truckBooking.createdBy || truckBooking.contactNumber  ,
+    truckBooking?.truckId?.type || " ",
+ tripBooking.contactName,
+  tripBooking.contactNumber 
 );
 
 

@@ -5,7 +5,8 @@ import {
   getTripBookingById,
   updateTripBooking,
   getBookingsByMobileNumber,
-  getAllTripBookings
+  getAllTripBookings,
+  cancelTripBooking
   // deleteTripBooking, // Uncomment if you want delete
 } from '../controller/tripbookingController.js';
 
@@ -29,6 +30,7 @@ router.get('/:id', protect, getTripBookingById);
 // Update trip booking by ID
 router.put('/:id', protect, updateTripBooking);
 
+router.post('/cancel-trip-booking',cancelTripBooking)
 // Uncomment if you want to enable deletion
 // router.delete('/:id', protect, deleteTripBooking);
 
