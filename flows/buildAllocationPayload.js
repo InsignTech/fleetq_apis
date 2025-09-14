@@ -287,7 +287,7 @@ export async function sendTruckNotificationForAllocation(
   try {
     const payload = {
       payload: {
-        name: "allocation_message", 
+        name: "truck_allocation_message", 
         components: [
           {
             type: "body",
@@ -366,7 +366,7 @@ export async function sendTripAllocationNotification(
   try {
     const payload = {
       payload: {
-        name: "trip_allocation_confirmed",
+        name: "trip_allocation_message_1",
         components: [
           {
             type: "body",
