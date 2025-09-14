@@ -391,7 +391,7 @@ export async function sendTripAllocationNotification(
             index: 0,
             parameters: [
               {
-                payload: `flow_4839205846564DA0927D70330A23C1BF||data_trip_booking_id=${tripId}`,
+                payload: `flow_4839205846564DA0927D70330A23C1BF||data_trip_Id=${tripId}`,
                 type: "payload",
               },
             ],
@@ -402,7 +402,7 @@ export async function sendTripAllocationNotification(
             index: 1,
             parameters: [
               {
-                payload: `flow_0A62D2685BB94E17ADAD8B22EF0B7E01||data_trip_booking_id=${tripId}`,
+                payload: `flow_0A62D2685BB94E17ADAD8B22EF0B7E01||data_trip_Id=${tripId}`,
                 type: "payload",
               },
             ],

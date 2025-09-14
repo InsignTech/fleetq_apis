@@ -373,17 +373,26 @@ export const paymentSuccess = async (req, res, next) => {
   try {
     const { paymentId, paymentIdExternal, phoneNumber } = req.body;
 
-    // 1. Find and update payment status
-    const payment = await Payment.findByIdAndUpdate(
-      paymentId,
-      { status: "success" },
-      { new: true }
-    );
+     // 1. Find payment
+    const payment = await Payment.findById(paymentId);
     if (!payment) {
-      return res
-        .status(200)
-        .json({ status: "false", message: "Payment not found" });
+      return res.status(200).json({
+        status: "false",
+        message: "Payment not found",
+      });
     }
+
+    // 2. Handle already success
+    if (payment.status === "success") {
+      return res.status(200).json({
+        status: "true",
+        message: "Payment already marked as success",
+      });
+    }
+
+    // 3. Update payment status
+    payment.status = "success";
+    await payment.save();
 
     // 2. Get allocationId from payment
     const allocationId = payment.allocationId;
