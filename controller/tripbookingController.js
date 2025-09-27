@@ -12,6 +12,7 @@ import { formatDateTime } from "../utils/formatDateTime.js";
 
 import Allocation from "../models/allocationSchema.js";
 import TruckBooking from "../models/truckBookingSchema.js";
+import { getTruckQueuePosition } from "./truckbookingController.js";
 
 
 
@@ -366,12 +367,31 @@ export const cancelTripBooking = async (req, res, next) => {
           await allocation.save();
 
           // free truck
-          const truckBooking = await TruckBooking.findById(allocation.truckBookingId);
+          const truckBooking = await TruckBooking.findById(allocation.truckBookingId).populate('truck');
           if (truckBooking) {
             truckBooking.status = STATUS.INQUEUE;
             truckBooking.remarks = remarks;
             await truckBooking.save();
-          }
+       
+
+  const queuePosition = await getTruckQueuePosition(
+    truckBooking.truckId?._id,
+    truckBooking.truckId?.type,
+    truckBooking._id
+  );
+
+  // 📩 Send cancellation push message
+  await sendTruckCancellationNotification(
+    truckBooking.createdBy || truckBooking.contactNumber,
+    truckBooking?.truckId?.registrationNumber || " ",
+    truckBooking?.truckId?.type,
+    queuePosition?.toString(),
+    truckBooking?.truckBookingId,
+    truckBooking?.date?.toISOString()
+  );
+
+     }
+
         }
         break;
 
@@ -391,6 +411,23 @@ export const cancelTripBooking = async (req, res, next) => {
             truckBooking.status = STATUS.INQUEUE;
             truckBooking.remarks = remarks;
             await truckBooking.save();
+
+            
+  const queuePosition = await getTruckQueuePosition(
+    truckBooking.truckId?._id,
+    truckBooking.truckId?.type,
+    truckBooking._id
+  );
+
+  // 📩 Send cancellation push message
+  await sendTruckCancellationNotification(
+    truckBooking.createdBy || truckBooking.contactNumber,
+    truckBooking?.truckId?.registrationNumber || " ",
+    truckBooking?.truckId?.type,
+    queuePosition?.toString(),
+    truckBooking?.truckBookingId,
+    truckBooking?.date?.toISOString()
+  );
           }
         }
         break;
@@ -412,6 +449,24 @@ export const cancelTripBooking = async (req, res, next) => {
             truckBooking.status = STATUS.INQUEUE;
             truckBooking.remarks = remarks;
             await truckBooking.save();
+
+
+            
+  const queuePosition = await getTruckQueuePosition(
+    truckBooking.truckId?._id,
+    truckBooking.truckId?.type,
+    truckBooking._id
+  );
+
+  // 📩 Send cancellation push message
+  await sendTruckCancellationNotification(
+    truckBooking.createdBy || truckBooking.contactNumber,
+    truckBooking?.truckId?.registrationNumber || " ",
+    truckBooking?.truckId?.type,
+    queuePosition?.toString(),
+    truckBooking?.truckBookingId,
+    truckBooking?.date?.toISOString()
+  );
           }
         }
         break;
@@ -425,11 +480,17 @@ export const cancelTripBooking = async (req, res, next) => {
     // ✅ Save trip booking changes
     await tripBooking.save();
 
+
+
+
+
     return sendResponse(res, 200, "Trip booking cancelled successfully", {
       booking: tripBooking,
       bookingStatus: tripBooking.status,
       cancelled: true,
     });
+
+
   } catch (error) {
     console.error("❌ Trip booking cancellation failed:", error);
     return sendResponse(res, 400, "Trip booking cancellation failed", {

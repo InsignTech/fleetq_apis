@@ -427,3 +427,53 @@ export async function sendTripAllocationNotification(
     }
   }
 }
+
+
+
+export const sendTruckCancellationNotification = async (
+  phoneNumber,
+  registrationNumber,
+  type,
+  queuePosition,
+  truckBookingId,
+  bookingTime
+) => {
+  try {
+    const payload = {
+      payload: {
+        name: "truck_allotment_cancellation_message",
+        components: [
+          {
+            type: "body",
+            parameters: [
+              { type: "text", text: registrationNumber }, // 1
+              { type: "text", text: String(type) },        // 2
+              { type: "text", text: String(queuePosition) }, // 3
+              { type: "text", text: truckBookingId },      // 4
+              { type: "text", text: bookingTime },         // 5
+            ],
+          },
+        ],
+        language: {
+          code: "en_US",
+          policy: "deterministic",
+        },
+        namespace: "29f53ec4_c8e3_4988_83fc_312d87b4bf8f",
+      },
+      phoneNumber: phoneNumber,
+    };
+
+     const response = await axios.post(apiUrl, payload, {
+      headers: {
+        Authorization: `Basic ${WHATSAPP_AUTH}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log("✅ Truck cancellation notification sent:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Failed to send truck cancellation notification:", error);
+    throw error;
+  }
+};

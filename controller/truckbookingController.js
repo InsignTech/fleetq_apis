@@ -737,6 +737,32 @@ export const cancelTruckBooking = async (req, res, next) => {
     });
   }
 };
+
+
+
+export const getTruckQueuePosition = async (truckId, truckType, bookingId) => {
+  const inQueueBookings = await TruckBooking.aggregate([
+    { $match: { status: STATUS.INQUEUE } },
+    {
+      $lookup: {
+        from: "trucks",
+        localField: "truckId",
+        foreignField: "_id",
+        as: "truck",
+      },
+    },
+    { $unwind: "$truck" },
+    { $match: { "truck.type": truckType } },
+    { $sort: { createdAt: 1 } },
+    { $project: { _id: 1 } },
+  ]);
+
+  return (
+    inQueueBookings.findIndex(
+      (b) => b._id.toString() === bookingId.toString()
+    ) + 1
+  );
+};
 // Delete Truck Booking
 // export const deleteTruckBooking = async (req, res, next) => {
 //   try {
