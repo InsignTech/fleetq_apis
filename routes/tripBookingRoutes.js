@@ -6,7 +6,8 @@ import {
   updateTripBooking,
   getBookingsByMobileNumber,
   getAllTripBookings,
-  cancelTripBooking
+  cancelTripBooking,
+  getPaginatedTripBookings
   // deleteTripBooking, // Uncomment if you want delete
 } from '../controller/tripbookingController.js';
 
@@ -34,4 +35,7 @@ router.post('/cancel-trip-booking',cancelTripBooking)
 // Uncomment if you want to enable deletion
 // router.delete('/:id', protect, deleteTripBooking);
 
+router.get('/app/get-all-tripbooking', getPaginatedTripBookings)
+// router.post('/app/get-all-tripbooking', getPaginatedTripBookings)
+// router.post('/app/get-all-tripbooking', getPaginatedTripBookings)
 export default router;

@@ -6,6 +6,7 @@ import TruckBooking from "../models/truckBookingSchema.js";
 import TripBooking from "../models/tripbookingSchema.js"; // Assuming you have a Trip model
 import {
   sendTripAllocationNotification,
+  sendTruckAllotmentNotification,
   sendTruckNotificationForAllocation,
   sendTruckNotificationForAllocationPayment,
 } from "../flows/buildAllocationPayload.js";
@@ -155,57 +156,6 @@ export const updateAllocation = async (req, res, next) => {
   }
 };
 
-export const allocateTrucksToTrips = async (req, res, next) => {
-  //   try {
-  //     // 1. Fetch all INQUEUE TruckBookings sorted FIFO (oldest first)
-  //     const truckBookings = await TruckBooking.find({
-  //       status: STATUS.INQUEUE,
-  //     }).sort({ createdAt: 1 });
-  //     // 2. Fetch all TripBookings that are unallocated (or in some 'pending' status) sorted FIFO
-  //     const tripBookings = await TripBooking.find({
-  //       status: STATUS.INQUEUE,
-  //     }).sort({ createdAt: 1 });
-  //     // We'll allocate truckBookings to tripBookings by matching 'type'
-  //     // Assuming truckBooking and tripBooking have a 'type' field (20 or 40)
-  //     for (const truckBooking of truckBookings) {
-  //       // Find a trip booking with matching type
-  //       const matchedTripIndex = tripBookings.findIndex(
-  //         (trip) => trip.type === truckBooking.type
-  //       );
-  //       if (matchedTripIndex === -1) {
-  //         // No matching trip for this truck booking, skip
-  //         continue;
-  //       }
-  //       const tripBooking = tripBookings[matchedTripIndex];
-  //       // Create allocation record linking truckBooking and tripBooking
-  //       const allocation = new Allocation({
-  //         truckBookingId: truckBooking._id,
-  //         tripBookingId: tripBooking._id,
-  //         status: STATUS.ALLOCATED,
-  //         createdBy: req.user._id,
-  //         allocatedOn: new Date(),
-  //         // any other fields you want to store
-  //       });
-  //       await allocation.save();
-  //       // Update statuses so they don't get allocated again
-  //       truckBooking.status = STATUS.INPROGRESS;
-  //       truckBooking.updatedUserId = req.user._id
-  //       await truckBooking.save();
-  //       tripBooking.status = STATUS.INPROGRESS;
-  //        truckBooking.updatedUserId = req.user._id
-  //       await tripBooking.save();
-  //       // Remove allocated tripBooking from the array so it's not matched again
-  //       tripBookings.splice(matchedTripIndex, 1);
-  //     }
-  //     return res.status(200).json({
-  //       success: true,
-  //       message: "Allocation completed successfully",
-  //     });
-  //   } catch (err) {
-  //     next(err);
-  //   }
-  // };
-};
 
 /**
  * Handles automatic allocation of trucks and trips asynchronously.
@@ -247,13 +197,23 @@ export const allocateTruckAndTrip = async ({
           console.log("Truck created phone number missing");
           return;
         }
-        sendTruckNotificationForAllocationPayment(
-          allocation?._id,
-          String(trip?.rate || 0),
-          truck?.createdBy,
+        // sendTruckNotificationForAllocationPayment(
+        //   allocation?._id,
+        //   String(trip?.rate || 0),
+        //   truck?.createdBy,
+        //   trip.destination || "",
+        //   truck?.truckBookingId
+        // );
+
+         sendTruckAllotmentNotification(
+          truck.registrationNumber,
           trip.destination || "",
+          String(trip?.rate || 0),
+          allocation?._id,
+          truck?.createdBy,
           truck?.truckBookingId
         );
+
         // sendTripNotification(matchingTrip, truckBooking);
 
         console.log(
@@ -374,35 +334,34 @@ export const getPaymentData = async (req, res, next) => {
 
 export const paymentSuccess = async (req, res, next) => {
   try {
-    const { paymentId, paymentIdExternal, phoneNumber } = req.body;
+    const { allocationId, paymentIdExternal, phoneNumber } = req.body;
 
-    // 1. Find payment
-    const payment = await Payment.findById(paymentId);
-    if (!payment) {
-      return res.status(200).json({
-        status: "false",
-        message: "Payment not found",
-      });
-    }
+    // // 1. Find payment
+    // const payment = await Payment.findById(paymentId);
+    // if (!payment) {
+    //   return res.status(200).json({
+    //     status: "false",
+    //     message: "Payment not found",
+    //   });
+    // }
 
-    // 2. Handle already success
-    if (payment.status === "success") {
-      return res.status(200).json({
-        status: "true",
-        message: "Payment already marked as success",
-      });
-    }
+    // // 2. Handle already success
+    // if (payment.status === "success") {
+    //   return res.status(200).json({
+    //     status: "true",
+    //     message: "Payment already marked as success",
+    //   });
+    // }
 
-    // 3. Update payment status
-    payment.status = "success";
-    await payment.save();
+    // // 3. Update payment status
+    // payment.status = "success";
+    // await payment.save();
 
     // 2. Get allocationId from payment
-    const allocationId = payment.allocationId;
     if (!allocationId) {
       return res
         .status(200)
-        .json({ status: "false", message: "No allocationId in payment" });
+        .json({ status: "false", message: "No allocationId " });
     }
 
     // 3. Find allocation and get truckBookingId, tripBookingId

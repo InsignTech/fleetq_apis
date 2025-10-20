@@ -4,7 +4,7 @@ import {
   getAllocations,
   getAllocationById,
   updateAllocation,
-  allocateTrucksToTrips,
+  // allocateTrucksToTrips,
   getPaymentData,
   paymentSuccess,
 } from "../controller/allocationController.js";
@@ -24,7 +24,7 @@ router.get("/:id", getAllocationById);
 router.put("/:id", updateAllocation);
 
 //allocate trucks
-router.get('/allocate', allocateTrucksToTrips)
+// router.get('/allocate', allocateTrucksToTrips)
 
 router.post('/get-payment-data',getPaymentData)
 

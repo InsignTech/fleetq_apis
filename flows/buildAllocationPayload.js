@@ -477,3 +477,82 @@ export const sendTruckCancellationNotification = async (
     throw error;
   }
 };
+
+
+export async function sendTruckAllotmentNotification(
+  truckNumber,
+  destination,
+  amount,
+  allocationId,
+  truckbookingId,
+  phoneNumber
+) {
+  try {
+    const payload = {
+      payload: {
+        name: "truck_allotment_step1", // WhatsApp template name
+        components: [
+          {
+            type: "body",
+            parameters: [
+              { type: "text", text: truckNumber },   // Truck Number
+              { type: "text", text: destination },   // Destination
+              { type: "text", text: String(amount) } // Amount
+            ],
+          },
+          {
+            index: 0,
+            parameters: [
+              {
+                payload: `flow_170328C33E074059A3BA655A7D4A86DD||data_allocation_id=${allocationId}`,
+                type: "payload",
+              },
+            ],
+            sub_type: "quick_reply",
+            type: "button",
+          },
+          {
+            index: 1,
+            parameters: [
+              {
+                payload: `flow_60C3653535974B6AADA59CE5FB6B1692||data_Response.data.bookingId=${truckbookingId}`,
+                type: "payload",
+              },
+            ],
+            sub_type: "quick_reply",
+            type: "button",
+          },
+        ],
+        language: {
+          code: "en_US",
+          policy: "deterministic",
+        },
+        namespace: "29f53ec4_c8e3_4988_83fc_312d87b4bf8f",
+      },
+      phoneNumber: phoneNumber,
+    };
+
+    console.log("🔹 Sending WhatsApp Notification Payload:", JSON.stringify(payload, null, 2));
+
+    const response = await axios.post(apiUrl, payload, {
+      headers: {
+        Authorization: `Basic ${WHATSAPP_AUTH}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log("✅ WhatsApp Notification Sent Successfully!");
+    console.log("🔹 Status:", response.status);
+    console.log("🔹 Response Data:", JSON.stringify(response.data, null, 2));
+
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error Sending WhatsApp Notification");
+    if (error.response) {
+      console.error("🔹 Status:", error.response.status);
+      console.error("🔹 Error Data:", JSON.stringify(error.response.data, null, 2));
+    } else {
+      console.error("🔹 Error Message:", error.message);
+    }
+  }
+}

@@ -673,3 +673,43 @@ export const cancelTripBooking = async (req, res, next) => {
     });
   }
 };
+
+export const getPaginatedTripBookings = async (req, res, next) => {
+  try {
+    let filter = {};
+
+    // ✅ Status filter
+    if (req.query.status) {
+      filter.status = req.query.status;
+    }
+
+    // ✅ Pagination parameters
+    const page = parseInt(req.query.page) > 0 ? parseInt(req.query.page) : 1;
+    const limit = parseInt(req.query.limit) > 0 ? parseInt(req.query.limit) : 10;
+    const skip = (page - 1) * limit;
+
+    // ✅ Fetch total count
+    const total = await TripBooking.countDocuments(filter);
+
+    // ✅ Fetch paginated trips
+    const trips = await TripBooking.find(filter)
+      .sort({ date: 1 })
+      .skip(skip)
+      .limit(limit);
+
+    if (!trips.length) {
+      return sendResponse(res, 404, "No trip bookings found");
+    }
+
+    // ✅ Normal paginated response
+    return sendResponse(res, 200, "Trip bookings fetched successfully", {
+      trips,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
