@@ -7,6 +7,7 @@ import {
   deleteLocation,
   getLocationsPDF,
   getLocationDetails,
+  getLocationsWithRate,
 } from "../controller/locationController.js";
 import protect from "../middleWare/userMiddleWare.js";
 import { checkAdmin } from "../middleWare/checkAdmin.js";
@@ -32,5 +33,5 @@ router.put("/:id", protect, checkAdmin, updateLocation);
 // Delete location by ID
 router.delete("/:id", protect, checkAdmin, deleteLocation);
 
-
+router.get("/app/get-location-with-rate",getLocationsWithRate)
 export default router;

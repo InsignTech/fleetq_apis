@@ -740,69 +740,68 @@ export const getPaginatedTripBookings = async (req, res, next) => {
 export const searchTripBookings = async (req, res, next) => {
   try {
     const { tripId, companyName } = req.query;
-    const filter = {};
 
-    // Build search filter
-    if (tripId) {
-      // Search for partial match in tripBookingId
-      filter.tripBookingId = { $regex: tripId, $options: 'i' };
-    }
-
-    let trips;
-    if (companyName) {
-      // Search by company name using aggregation to match company name
-      trips = await TripBooking.aggregate([
-        {
-          $lookup: {
-            from: 'companies', // assuming your Company collection name
-            localField: 'companyId',
-            foreignField: '_id',
-            as: 'company'
-          }
-        },
-        {
-          $match: {
-            'company.name': { $regex: companyName, $options: 'i' },
-            ...(tripId && { tripBookingId: filter.tripBookingId })
-          }
-        },
-        { $limit: 20 },
-        {
-          $lookup: {
-            from: 'companies',
-            localField: 'companyId',
-            foreignField: '_id',
-            pipeline: [
-              { $project: { name: 1, address: 1 } }
-            ],
-            as: 'companyId'
-          }
-        },
-        { $unwind: '$companyId' }
-      ]);
-    } else {
-      // If only searching by tripId or no search params
-      trips = await TripBooking.find(filter)
+    // If no query provided, return top 20 results (same behavior as before)
+    if (!tripId && !companyName) {
+      const trips = await TripBooking.find({})
         .limit(20)
         .sort({ date: 1 })
         .populate("companyId", "name address");
+
+      return sendResponse(res, 200, "Trip bookings found", {
+        trips,
+        total: trips.length,
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+      });
     }
 
-    if (trips.length === 0) {
-      return sendResponse(
-        res,
-        404,
-        "No trip bookings found matching the search criteria."
-      );
-    }
+    // Build regexes if provided
+    const tripRegex = tripId ? new RegExp(tripId, "i") : null;
+    const companyRegex = companyName ? new RegExp(companyName, "i") : null;
 
-    // Success response with same structure as getPaginatedTripBookings
+    // Build $or conditions for aggregation (match any)
+    const orConditions = [];
+    if (tripRegex) orConditions.push({ tripBookingId: tripRegex });
+    if (companyRegex) orConditions.push({ "company.name": companyRegex });
+
+    // Aggregation: lookup company, match either condition, sort & limit,
+    // then attach company fields into companyId so shape matches .populate("companyId", ...)
+    const tripsAgg = await TripBooking.aggregate([
+      {
+        $lookup: {
+          from: "companies",
+          localField: "companyId",
+          foreignField: "_id",
+          as: "company",
+        },
+      },
+      { $unwind: { path: "$company", preserveNullAndEmptyArrays: true } },
+      { $match: { $or: orConditions } },
+      { $sort: { date: 1 } },
+      { $limit: 20 },
+      {
+        $addFields: {
+          companyId: {
+            _id: "$company._id",
+            name: "$company.name",
+            address: "$company.address",
+          },
+        },
+      },
+      { $project: { company: 0 } },
+    ]);
+
+    // Ensure we always return an array (may be empty)
+    const trips = Array.isArray(tripsAgg) ? tripsAgg : [];
+
     return sendResponse(res, 200, "Trip bookings found", {
       trips,
       total: trips.length,
       page: 1,
       limit: 20,
-      totalPages: 1
+      totalPages: 1,
     });
   } catch (err) {
     if (!res.headersSent) {

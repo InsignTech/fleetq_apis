@@ -49,6 +49,28 @@ export const getLocations = async (req, res, next) => {
   }
 };
 
+export const getLocationsWithRate = async (req, res, next) => {
+  try {
+    const locations = await Location.find(
+      {},
+      {
+        locationName: 1,
+        rate: 1,
+        distanceKm: 1,       // ✅ include distance
+        cashRate20Ft: 1,     // ✅ include cash rate 20ft
+        cashRate40Ft: 1,     // ✅ include cash rate 40ft
+        _id: 0,
+      }
+    ).sort({ locationName: 1 });
+
+    return sendResponse(res, 200, "Locations fetched successfully", { locations });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+
 export const getLocationsPDF = async (req, res, next) => {
   try {
     // 1️⃣ Fetch sorted locations with required fields only
