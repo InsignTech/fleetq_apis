@@ -4,7 +4,8 @@ import {
   updateDetails, 
   adminLogin, 
   userVerify,
-  userVerifyWithCompanyType
+  userVerifyWithCompanyType,
+  forwarderLogin
 } from '../controller/userController.js';
 import protect from '../middleWare/userMiddleWare.js';
 
@@ -23,5 +24,5 @@ router.post('/verify', userVerify);
 router.post('/validate-user', userVerifyWithCompanyType);               // Regular user login
 router.put('/:id', protect, updateDetails);      // Update user details (auth required)
 
-
+router.post('/app/forwarder/login', forwarderLogin);     
 export default router;

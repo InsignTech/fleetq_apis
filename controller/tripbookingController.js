@@ -676,32 +676,50 @@ export const cancelTripBooking = async (req, res, next) => {
 
 export const getPaginatedTripBookings = async (req, res, next) => {
   try {
-    let filter = {};
+    const filter = {};
 
-    // ✅ Status filter
+    // ✅ Status filter (only allow valid enum values)
     if (req.query.status) {
-      filter.status = req.query.status;
+      const status = req.query.status.toLowerCase();
+
+      if (!statusValues.includes(status)) {
+        // Send response and immediately return
+        return sendResponse(
+          res,
+          400,
+          `Invalid status value. Allowed: ${statusValues.join(", ")}`
+        );
+      }
+
+      filter.status = status;
     }
 
     // ✅ Pagination parameters
-    const page = parseInt(req.query.page) > 0 ? parseInt(req.query.page) : 1;
-    const limit = parseInt(req.query.limit) > 0 ? parseInt(req.query.limit) : 10;
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit) || 10, 1);
     const skip = (page - 1) * limit;
 
     // ✅ Fetch total count
     const total = await TripBooking.countDocuments(filter);
 
-    // ✅ Fetch paginated trips
+    // ✅ Fetch paginated results
     const trips = await TripBooking.find(filter)
       .sort({ date: 1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .populate("companyId", "name address");
 
-    if (!trips.length) {
-      return sendResponse(res, 404, "No trip bookings found");
+    if (trips.length === 0) {
+      return sendResponse(
+        res,
+        404,
+        req.query.status
+          ? `No trip bookings found with status "${req.query.status}".`
+          : "No trip bookings found."
+      );
     }
 
-    // ✅ Normal paginated response
+    // ✅ Success response
     return sendResponse(res, 200, "Trip bookings fetched successfully", {
       trips,
       total,
@@ -710,6 +728,12 @@ export const getPaginatedTripBookings = async (req, res, next) => {
       totalPages: Math.ceil(total / limit),
     });
   } catch (err) {
-    next(err);
+    // Only call next(err) if headers haven't been sent yet
+    if (!res.headersSent) {
+      next(err);
+    } else {
+      console.error("Error occurred after response was sent:", err);
+    }
   }
 };
+

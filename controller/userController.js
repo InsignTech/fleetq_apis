@@ -168,6 +168,58 @@ const adminLogin = async (req, res, next) => {
   }
 };
 
+export const forwarderLogin = async (req, res, next) => {
+  const { phoneNumber, password } = req.body;
+
+  try {
+    // ✅ Basic validation
+    if (!phoneNumber || !password) {
+      return sendResponse(res, 400, "Phone number and password are required");
+    }
+
+    // ✅ Find user by phoneNumber and populate company
+    const user = await User.findOne({ phoneNumber })
+      .select("+password")
+      .populate("companyId");
+
+    if (!user) {
+      return sendResponse(res, 404, "User not found");
+    }
+
+    // ✅ Ensure user is linked to a forwarder company
+    const company = user.companyId;
+    if (!company) {
+      return sendResponse(res, 400, "User is not linked to any company");
+    }
+
+    if (!["forwarder", "both"].includes(company.type)) {
+      return sendResponse(
+        res,
+        403,
+        "User’s company is not authorized (must be forwarder or both)"
+      );
+    }
+
+    // ✅ Password check
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch) {
+      return sendResponse(res, 401, "Invalid password");
+    }
+
+    // ✅ Prepare user data for response
+    const userObj = user.toObject();
+    delete userObj.password;
+
+    // ✅ Return token and user details
+    return sendResponse(res, 200, "Forwarder login successful", {
+      token: generateToken(user._id),
+      user: userObj,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // =========================
 // UPDATE USER DETAILS
 // =========================
