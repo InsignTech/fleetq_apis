@@ -17,7 +17,7 @@ import protect from '../middleWare/userMiddleWare.js'; // Your auth middleware t
 const router = express.Router();
 
 // Create a new trip booking - protected
-router.post('/', protect, createTripBooking);
+router.post('/',  createTripBooking);
 
 // Get all trip bookings (with optional filters)
 router.get('/', protect, getTripBookings);

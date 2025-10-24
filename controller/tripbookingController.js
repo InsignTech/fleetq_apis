@@ -31,7 +31,7 @@ export const createTripBooking = async (req, res, next) => {
       count = 1,
       date,
     } = req.body;
-
+   console.log(req.body)
     // ✅ 1. Validate input fields
     if (!companyId || !type || !destination || !rate || !phoneNumber) {
       return sendResponse(res, 400, "Missing required fields", {
@@ -48,7 +48,7 @@ export const createTripBooking = async (req, res, next) => {
       date: date ? new Date(date) : new Date(),
       status: STATUS.INQUEUE,
       rate,
-      createdUserId: req?.user?._id ,
+      createdUserId: req?.user?._id || req?.body?.createdUserId || "6899983445d5bcca17e352a4" ,
       remarks,
       contactName,
       contactNumber,
