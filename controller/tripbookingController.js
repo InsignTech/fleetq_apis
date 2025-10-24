@@ -737,3 +737,78 @@ export const getPaginatedTripBookings = async (req, res, next) => {
   }
 };
 
+export const searchTripBookings = async (req, res, next) => {
+  try {
+    const { tripId, companyName } = req.query;
+    const filter = {};
+
+    // Build search filter
+    if (tripId) {
+      // Search for partial match in tripBookingId
+      filter.tripBookingId = { $regex: tripId, $options: 'i' };
+    }
+
+    let trips;
+    if (companyName) {
+      // Search by company name using aggregation to match company name
+      trips = await TripBooking.aggregate([
+        {
+          $lookup: {
+            from: 'companies', // assuming your Company collection name
+            localField: 'companyId',
+            foreignField: '_id',
+            as: 'company'
+          }
+        },
+        {
+          $match: {
+            'company.name': { $regex: companyName, $options: 'i' },
+            ...(tripId && { tripBookingId: filter.tripBookingId })
+          }
+        },
+        { $limit: 20 },
+        {
+          $lookup: {
+            from: 'companies',
+            localField: 'companyId',
+            foreignField: '_id',
+            pipeline: [
+              { $project: { name: 1, address: 1 } }
+            ],
+            as: 'companyId'
+          }
+        },
+        { $unwind: '$companyId' }
+      ]);
+    } else {
+      // If only searching by tripId or no search params
+      trips = await TripBooking.find(filter)
+        .limit(20)
+        .sort({ date: 1 })
+        .populate("companyId", "name address");
+    }
+
+    if (trips.length === 0) {
+      return sendResponse(
+        res,
+        404,
+        "No trip bookings found matching the search criteria."
+      );
+    }
+
+    // Success response with same structure as getPaginatedTripBookings
+    return sendResponse(res, 200, "Trip bookings found", {
+      trips,
+      total: trips.length,
+      page: 1,
+      limit: 20,
+      totalPages: 1
+    });
+  } catch (err) {
+    if (!res.headersSent) {
+      next(err);
+    } else {
+      console.error("Error occurred after response was sent:", err);
+    }
+  }
+};
