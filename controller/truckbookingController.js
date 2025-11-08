@@ -649,7 +649,8 @@ export const cancelTruckBooking = async (req, res, next) => {
         cancelled: false,
       });
     }
-
+   console.log("((((((")
+   console.log(truckBooking)
     // ✅ Handle statuses that can't be cancelled
     if (
       truckBooking.status === STATUS.CANCELLED ||
@@ -668,11 +669,15 @@ export const cancelTruckBooking = async (req, res, next) => {
 
     // ✅ Fetch allocation if exists
     allocation = await Allocation.findOne({ truckBookingId: truckBooking._id });
+    console.log("Allocaton:::")
+    console.log(allocation)
     // ✅ Fetch trip booking if exists
     if (allocation) {
+      console.log("---alloc")
       tripBooking = await TripBooking.findById(allocation.tripBookingId);
     }
 
+    console.log(tripBooking)
     switch (truckBooking.status) {
       case STATUS.INQUEUE:
         truckBooking.status = STATUS.CANCELLED;
