@@ -771,16 +771,24 @@ export const getTruckQueuePosition = async (truckId, truckType, bookingId) => {
     },
     { $unwind: "$truck" },
     { $match: { "truck.type": truckType } },
-    { $sort: { createdAt: 1 } },
+    { $sort: { createdAt: 1, _id: 1 } },
     { $project: { _id: 1 } },
   ]);
 
-  return (
-    inQueueBookings.findIndex(
-      (b) => b._id.toString() === bookingId.toString()
-    ) + 1
+  const index = inQueueBookings.findIndex(
+    (b) => b._id.toString() === bookingId.toString()
   );
+
+  // Ensure position is at least 1
+  const position = index >= 0 ? index + 1 : 1;
+
+  console.log(
+    `📊 Truck Queue Position for booking ${bookingId}: ${position} (type: ${truckType})`
+  );
+
+  return position;
 };
+
 // Delete Truck Booking
 // export const deleteTruckBooking = async (req, res, next) => {
 //   try {

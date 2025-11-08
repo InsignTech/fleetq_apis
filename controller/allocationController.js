@@ -417,6 +417,8 @@ export const paymentSuccess = async (req, res, next) => {
     }
     const { truckBookingId, tripBookingId } = allocation;
 
+    allocation.status = STATUS.ALLOCATED
+    allocation.save()
     // 4. Fetch truck and trip details
     const truckBooking = await TruckBooking.findById(truckBookingId).populate(
       "truckId"
