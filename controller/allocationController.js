@@ -252,17 +252,22 @@ export const allocateTruckAndTrip = async ({
           status: STATUS.INPROGRESS,
         });
 
+         let truckdetails = await Truck.findById(truckBooking.truckId)
+
         // Send notifications to truck for payment
         if (!truck.createdBy) {
           console.log("Truck created phone number missing");
           return;
         }
-        sendTruckNotificationForAllocationPayment(
-          allocation?._id,
-          String(trip?.rate || 0),
-          truck?.createdBy,
+   
+
+         sendTruckAllotmentNotification(
+          truckdetails.registrationNumber,
           trip.destination || "",
-          truck?.truckBookingId
+          String(trip?.rate || 0),
+          allocation?._id,
+          truck?.truckBookingId,
+          truck?.createdBy
         );
         // sendTripNotification(tripBooking, availableTruck);
 
