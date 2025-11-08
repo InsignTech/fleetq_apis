@@ -532,6 +532,7 @@ export async function sendTruckAllotmentNotification(
       phoneNumber: phoneNumber,
     };
 
+    
     console.log("🔹 Sending WhatsApp Notification Payload:", JSON.stringify(payload, null, 2));
 
     const response = await axios.post(apiUrl, payload, {

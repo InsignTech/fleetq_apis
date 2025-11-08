@@ -215,8 +215,8 @@ export const allocateTruckAndTrip = async ({
           trip.destination || "",
           String(trip?.rate || 0),
           allocation?._id,
-          truck?.createdBy,
-          truck?.truckBookingId
+          truck?.truckBookingId,
+          truck?.createdBy
         );
 
         // sendTripNotification(matchingTrip, truckBooking);
