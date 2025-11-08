@@ -204,7 +204,15 @@ export const allocateTruckAndTrip = async ({
         //   trip.destination || "",
         //   truck?.truckBookingId
         // );
-
+        console.log(truck)
+        console.log("-----------------")
+        console.log(trip)
+        console.log("-----------------")
+        console.log(String(trip?.rate || 0))
+        console.log("-----------------")
+        console.log(allocation)
+        console.log("-----------------")
+     
          sendTruckAllotmentNotification(
           truck.registrationNumber,
           trip.destination || "",
