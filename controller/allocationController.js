@@ -164,119 +164,156 @@ export const updateAllocation = async (req, res, next) => {
  * @param {Object} [options.truckBooking] - Newly created truck booking (optional)
  * @param {Object} [options.tripBooking] - Newly created trip booking (optional)
  */
-export const allocateTruckAndTrip = async ({
-  truckBooking = null,
-  tripBooking = null,
-}) => {
+export const allocateTruckAndTrip = async ({ truckBooking = null, tripBooking = null }) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    let allocation;
-    let trip;
-    let truck;
+    let allocation = null;
+    let trip = null;
+    let truck = null;
+
+    console.log("🚀 Allocation session started...");
+    console.log("Input Params:", { hasTruckBooking: !!truckBooking, hasTripBooking: !!tripBooking });
+
     if (truckBooking) {
-      // Find a pending trip for this truck
+      console.log(`🔍 Searching for pending trip matching truck type: ${truckBooking.type}`);
       const matchingTrip = await TripBooking.findOne({
         type: truckBooking.type,
         status: STATUS.INQUEUE,
-      }).sort({ createdAt: 1, _id: 1 });
+      })
+        .sort({ createdAt: 1, _id: 1 })
+        .session(session);
 
       if (matchingTrip) {
-        allocation = await Allocation.create({
-          truckBookingId: truckBooking._id,
-          tripBookingId: matchingTrip._id,
-          status: STATUS.INPROGRESS,
-        });
+        console.log(`🟢 Matching Trip Found: ${matchingTrip._id}`);
 
-        truck = await TruckBooking.findByIdAndUpdate(truckBooking._id, {
-          status: STATUS.INPROGRESS,
-        });
-        trip = await TripBooking.findByIdAndUpdate(matchingTrip._id, {
-          status: STATUS.INPROGRESS,
-        });
+        allocation = await Allocation.create(
+          [
+            {
+              truckBookingId: truckBooking._id,
+              tripBookingId: matchingTrip._id,
+              status: STATUS.INPROGRESS,
+            },
+          ],
+          { session }
+        );
 
-        // Send notifications asynchronously
+        console.log("📦 Allocation created:", allocation[0]._id);
+
+        truck = await TruckBooking.findByIdAndUpdate(
+          truckBooking._id,
+          { status: STATUS.INPROGRESS },
+          { new: true, session }
+        );
+
+        trip = await TripBooking.findByIdAndUpdate(
+          matchingTrip._id,
+          { status: STATUS.INPROGRESS },
+          { new: true, session }
+        );
+
+        console.log("✅ Status updated for Truck and Trip.");
+
         if (!truck.createdBy) {
-          console.log("Truck created phone number missing");
-          return;
+          console.log("⚠️ Truck createdBy missing (no phone number).");
+          throw new Error("Truck createdBy missing");
         }
-      let truckdetails = await Truck.findById(truckBooking.truckId)
-        // sendTruckNotificationForAllocationPayment(
-        //   allocation?._id,
-        //   String(trip?.rate || 0),
-        //   truck?.createdBy,
-        //   trip.destination || "",
-        //   truck?.truckBookingId
-        // );
-        console.log(truckdetails)
-        console.log("-----------------")
-        
-     
-         sendTruckAllotmentNotification(
+
+        const truckdetails = await Truck.findById(truckBooking.truckId).session(session);
+        console.log("🚚 Truck Details Fetched:", truckdetails.registrationNumber);
+
+        sendTruckAllotmentNotification(
           truckdetails.registrationNumber,
           trip.destination || "",
           String(trip?.rate || 0),
-          allocation?._id,
+          allocation[0]?._id,
           truck?.truckBookingId,
           truck?.createdBy
         );
 
-        // sendTripNotification(matchingTrip, truckBooking);
-
-        console.log(
-          `✅ Truck ${truckBooking._id} allocated to Trip ${matchingTrip._id}`
-        );
+        console.log(`📨 Notification sent to Truck Owner (${truck.createdBy}).`);
+        console.log(`✅ Truck ${truckBooking._id} allocated to Trip ${matchingTrip._id}`);
+      } else {
+        console.log("❌ No pending trips available for this truck type.");
       }
     }
 
     if (tripBooking) {
-      // Find a pending truck for this trip
+      console.log(`🔍 Searching for available truck for trip type: ${tripBooking.type}`);
       const availableTruck = await TruckBooking.findOne({
         status: STATUS.INQUEUE,
       })
         .populate({
           path: "truckId",
-          match: { type: tripBooking.type }, // Filter trucks by type
+          match: { type: tripBooking.type },
         })
-        .sort({ createdAt: 1, _id: 1 });
+        .sort({ createdAt: 1, _id: 1 })
+        .session(session);
 
-      if (availableTruck) {
-        allocation = await Allocation.create({
-          truckBookingId: availableTruck._id,
-          tripBookingId: tripBooking._id,
-          status: STATUS.INPROGRESS,
-        });
+      if (availableTruck && availableTruck.truckId) {
+        console.log(`🟢 Matching Truck Found: ${availableTruck._id}`);
 
-        truck = await TruckBooking.findByIdAndUpdate(availableTruck._id, {
-          status: STATUS.INPROGRESS,
-        });
-        trip = await TripBooking.findByIdAndUpdate(tripBooking._id, {
-          status: STATUS.INPROGRESS,
-        });
+        allocation = await Allocation.create(
+          [
+            {
+              truckBookingId: availableTruck._id,
+              tripBookingId: tripBooking._id,
+              status: STATUS.INPROGRESS,
+            },
+          ],
+          { session }
+        );
 
-         let truckdetails = await Truck.findById(truck.truckId)
+        console.log("📦 Allocation created:", allocation[0]._id);
 
-        // Send notifications to truck for payment
+        truck = await TruckBooking.findByIdAndUpdate(
+          availableTruck._id,
+          { status: STATUS.INPROGRESS },
+          { new: true, session }
+        );
+
+        trip = await TripBooking.findByIdAndUpdate(
+          tripBooking._id,
+          { status: STATUS.INPROGRESS },
+          { new: true, session }
+        );
+
+        console.log("✅ Status updated for Truck and Trip.");
+
+        const truckdetails = await Truck.findById(truck.truckId).session(session);
         if (!truck.createdBy) {
-          console.log("Truck created phone number missing");
-          return;
+          console.log("⚠️ Truck createdBy missing (no phone number).");
+          throw new Error("Truck createdBy missing");
         }
 
-         sendTruckAllotmentNotification(
+        sendTruckAllotmentNotification(
           truckdetails.registrationNumber,
           trip.destination || "",
           String(trip?.rate || 0),
-          allocation?._id,
+          allocation[0]?._id,
           truck?.truckBookingId,
           truck?.createdBy
         );
-        // sendTripNotification(tripBooking, availableTruck);
 
-        console.log(
-          `✅ Trip ${tripBooking._id} allocated to Truck ${availableTruck._id}`
-        );
+        console.log(`📨 Notification sent to Truck Owner (${truck.createdBy}).`);
+        console.log(`✅ Trip ${tripBooking._id} allocated to Truck ${availableTruck._id}`);
+      } else {
+        console.log("❌ No available trucks for this trip type.");
       }
     }
+
+    await session.commitTransaction();
+    console.log("🟢 Allocation transaction committed successfully.");
   } catch (error) {
     console.error("❌ Error during allocation:", error.message);
+    console.log("⏪ Rolling back all changes...");
+
+    await session.abortTransaction();
+    console.log("🔁 Transaction reverted successfully.");
+  } finally {
+    session.endSession();
+    console.log("🏁 Allocation session closed.");
   }
 };
 
