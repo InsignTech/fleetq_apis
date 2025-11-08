@@ -11,6 +11,7 @@ import {
   sendTruckNotificationForAllocationPayment,
 } from "../flows/buildAllocationPayload.js";
 import Payment from "../models/paymentSchema.js";
+import Truck from "../models/truckSchema.js";
 
 // Create allocation
 export const createAllocation = async (req, res, next) => {
@@ -197,6 +198,7 @@ export const allocateTruckAndTrip = async ({
           console.log("Truck created phone number missing");
           return;
         }
+      let truckdetails = await Truck.findById(truckBooking.truckId)
         // sendTruckNotificationForAllocationPayment(
         //   allocation?._id,
         //   String(trip?.rate || 0),
@@ -204,17 +206,12 @@ export const allocateTruckAndTrip = async ({
         //   trip.destination || "",
         //   truck?.truckBookingId
         // );
-        console.log(truck)
+        console.log(truckdetails)
         console.log("-----------------")
-        console.log(trip)
-        console.log("-----------------")
-        console.log(String(trip?.rate || 0))
-        console.log("-----------------")
-        console.log(allocation)
-        console.log("-----------------")
+        
      
          sendTruckAllotmentNotification(
-          truck.registrationNumber,
+          truckdetails.registrationNumber,
           trip.destination || "",
           String(trip?.rate || 0),
           allocation?._id,
