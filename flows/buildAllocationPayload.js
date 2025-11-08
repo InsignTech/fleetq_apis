@@ -306,7 +306,7 @@ export async function sendTruckNotificationForAllocation(
             index: 0,
             parameters: [
               {
-                payload: `flow_60C3653535974B6AADA59CE5FB6B1692||data_truck_booking_id=${truckBookingId}`,
+                payload: `flow_60C3653535974B6AADA59CE5FB6B1692||data_Response.data.bookingId=${truckBookingId}`,
                 type: "payload",
               },
             ],
@@ -532,7 +532,7 @@ export async function sendTruckAllotmentNotification(
       phoneNumber: phoneNumber,
     };
 
-    
+
     console.log("🔹 Sending WhatsApp Notification Payload:", JSON.stringify(payload, null, 2));
 
     const response = await axios.post(apiUrl, payload, {
