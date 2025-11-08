@@ -10,6 +10,7 @@ import truckbookingRoutes from "./routes/truckBookingRoutes.js";
 import allocationRoutes from "./routes/allocationRoutes.js";
 import ReportRoutes from "./routes/ReportRoutes.js";
 import errorHandler from "./middleWare/errorHandler.js";
+import "./jobs/autoCancelJob.js"; 
 import path from "path";
 const app = express();
 

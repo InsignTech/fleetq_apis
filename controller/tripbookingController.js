@@ -657,6 +657,10 @@ export const cancelTripBooking = async (req, res, next) => {
       );
     }
 
+            if(process.env.AutoAllocation == "true"){
+              setImmediate(() => allocateTruckAndTrip({ truckBooking: notifyData?.truckBooking }));
+            }
+
     return sendResponse(res, 200, "Trip booking cancelled successfully", {
       booking: tripBooking,
       bookingStatus: tripBooking.status,

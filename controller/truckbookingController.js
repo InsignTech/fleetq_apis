@@ -19,15 +19,26 @@ import { formatDateTime } from "../utils/formatDateTime.js";
 const apiUrl =
   "https://api.connectpanels.com/whatsapp-api/v1.0/customer/119041/bot/721911d2181a49af/template";
 
-
-
 export const createTruckBooking = async (req, res, next) => {
   try {
-    const { companyId, truckId, date, contactName, contactNumber, phoneNumber, remarks } =
-      req.body;
+    const {
+      companyId,
+      truckId,
+      date,
+      contactName,
+      contactNumber,
+      phoneNumber,
+      remarks,
+    } = req.body;
 
     // Validate input
-    if (!companyId || !truckId || !contactName || !contactNumber || !phoneNumber) {
+    if (
+      !companyId ||
+      !truckId ||
+      !contactName ||
+      !contactNumber ||
+      !phoneNumber
+    ) {
       return sendResponse(res, 400, "Missing required fields", {
         bookingStatus: false,
       });
@@ -65,7 +76,7 @@ export const createTruckBooking = async (req, res, next) => {
       contactNumber,
       remarks,
       createdUserId: req?.user?._id || null,
-      createdBy: phoneNumber
+      createdBy: phoneNumber,
     });
 
     const inQueueBookings = await TruckBooking.aggregate([
@@ -74,7 +85,7 @@ export const createTruckBooking = async (req, res, next) => {
       },
       {
         $lookup: {
-          from: "trucks", 
+          from: "trucks",
           localField: "truckId",
           foreignField: "_id",
           as: "truck",
@@ -96,13 +107,13 @@ export const createTruckBooking = async (req, res, next) => {
       bookingStatus: true,
       position: position,
       bookingId: booking.truckBookingId,
-      bookingTime: formatDateTime(booking.date)
+      bookingTime: formatDateTime(booking.date),
     });
 
-    truckExist.type
+    truckExist.type;
     // Trigger allocation in the background
-    if(process.env.AutoAllocation == "true"){
-       booking.type = truckExist.type;
+    if (process.env.AutoAllocation == "true") {
+      booking.type = truckExist.type;
       setImmediate(() => allocateTruckAndTrip({ truckBooking: booking }));
     }
   } catch (err) {
@@ -725,6 +736,10 @@ export const cancelTruckBooking = async (req, res, next) => {
     // ✅ Save truck booking changes
     await truckBooking.save();
 
+    if (process.env.AutoAllocation == "true") {
+      setImmediate(() => allocateTruckAndTrip({ tripBooking: tripBooking }));
+    }
+
     return sendResponse(res, 200, "Truck booking cancelled successfully", {
       booking: truckBooking,
       bookingStatus: truckBooking.status,
@@ -737,8 +752,6 @@ export const cancelTruckBooking = async (req, res, next) => {
     });
   }
 };
-
-
 
 export const getTruckQueuePosition = async (truckId, truckType, bookingId) => {
   const inQueueBookings = await TruckBooking.aggregate([
