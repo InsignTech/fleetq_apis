@@ -716,7 +716,7 @@ export const getPaginatedTripBookings = async (req, res, next) => {
     if (trips.length === 0) {
       return sendResponse(
         res,
-        404,
+        200,
         req.query.status
           ? `No trip bookings found with status "${req.query.status}".`
           : "No trip bookings found."
