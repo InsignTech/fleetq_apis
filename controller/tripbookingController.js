@@ -312,193 +312,6 @@ export const getBookingsByMobileNumber = async (req, res, next) => {
   }
 };
 
-// export const cancelTripBooking = async (req, res, next) => {
-//   try {
-//     const { tripBookingId, phoneNumber, remarks } = req.body;
-
-//     // ✅ Validation
-//     if (!tripBookingId) {
-//       return sendResponse(res, 200, "Trip booking ID is required", {
-//         cancelled: false,
-//       });
-//     }
-//     if (!remarks || remarks.trim() === "") {
-//       return sendResponse(res, 200, "Remarks are required for cancellation", {
-//         cancelled: false,
-//       });
-//     }
-
-//     // ✅ Find the trip booking
-//     const tripBooking = await TripBooking.findOne({ tripBookingId });
-//     if (!tripBooking) {
-//       return sendResponse(res, 200, "Trip booking not found", {
-//         cancelled: false,
-//       });
-//     }
-
-//     // ✅ Prevent double cancellation
-//     if (
-//       tripBooking.status === STATUS.CANCELLED ||
-//       tripBooking.status === STATUS.REJECTED
-//     ) {
-//       return sendResponse(
-//         res,
-//         200,
-//         "Trip booking is already cancelled or rejected",
-//         { booking: tripBooking, cancelled: false }
-//       );
-//     }
-
-//     // ✅ Get the latest allocation for this trip
-//     const allocation = await Allocation.findOne({
-//       tripBookingId: tripBooking._id,
-//     }).sort({ createdAt: -1 });
-
-//     switch (tripBooking.status) {
-//       case STATUS.INQUEUE:
-//         tripBooking.status = STATUS.CANCELLED;
-//         tripBooking.remarks = remarks;
-//         tripBooking.cancelledby = phoneNumber;
-
-//         if (allocation) {
-//           allocation.status = STATUS.CANCELLED;
-//           allocation.cancelledby = phoneNumber;
-//           allocation.remarks = remarks;
-//           await allocation.save();
-
-//           // free truck
-//           const truckBooking = await TruckBooking.findById(allocation.truckBookingId).populate('truck');
-//           if (truckBooking) {
-//             truckBooking.status = STATUS.INQUEUE;
-//             truckBooking.remarks = remarks;
-//             await truckBooking.save();
-       
-
-//   const queuePosition = await getTruckQueuePosition(
-//     truckBooking.truckId?._id,
-//     truckBooking.truckId?.type,
-//     truckBooking._id
-//   );
-
-//   // 📩 Send cancellation push message
-//   await sendTruckCancellationNotification(
-//     truckBooking.createdBy || truckBooking.contactNumber,
-//     truckBooking?.truckId?.registrationNumber || " ",
-//     truckBooking?.truckId?.type,
-//     queuePosition?.toString(),
-//     truckBooking?.truckBookingId,
-//     truckBooking?.date?.toISOString()
-//   );
-
-//      }
-
-//         }
-//         break;
-
-//       case STATUS.INPROGRESS:
-//         tripBooking.status = STATUS.REJECTED;
-//         tripBooking.remarks = remarks;
-//         tripBooking.cancelledby = phoneNumber;
-
-//         if (allocation) {
-//           allocation.status = STATUS.REJECTED;
-//           allocation.cancelledby = phoneNumber;
-//           allocation.remarks = remarks;
-//           await allocation.save();
-
-//           const truckBooking = await TruckBooking.findById(allocation.truckBookingId);
-//           if (truckBooking) {
-//             truckBooking.status = STATUS.INQUEUE;
-//             truckBooking.remarks = remarks;
-//             await truckBooking.save();
-
-            
-//   const queuePosition = await getTruckQueuePosition(
-//     truckBooking.truckId?._id,
-//     truckBooking.truckId?.type,
-//     truckBooking._id
-//   );
-
-//   // 📩 Send cancellation push message
-//   await sendTruckCancellationNotification(
-//     truckBooking.createdBy || truckBooking.contactNumber,
-//     truckBooking?.truckId?.registrationNumber || " ",
-//     truckBooking?.truckId?.type,
-//     queuePosition?.toString(),
-//     truckBooking?.truckBookingId,
-//     truckBooking?.date?.toISOString()
-//   );
-//           }
-//         }
-//         break;
-
-//       case STATUS.ACCEPTED:
-//       case STATUS.ALLOCATED:
-//         tripBooking.status = STATUS.CANCELLED;
-//         tripBooking.remarks = remarks;
-//         tripBooking.cancelledby = phoneNumber;
-
-//         if (allocation) {
-//           allocation.status = STATUS.CANCELLED;
-//           allocation.cancelledby = phoneNumber;
-//           allocation.remarks = remarks;
-//           await allocation.save();
-
-//           const truckBooking = await TruckBooking.findById(allocation.truckBookingId);
-//           if (truckBooking) {
-//             truckBooking.status = STATUS.INQUEUE;
-//             truckBooking.remarks = remarks;
-//             await truckBooking.save();
-
-
-            
-//   const queuePosition = await getTruckQueuePosition(
-//     truckBooking.truckId?._id,
-//     truckBooking.truckId?.type,
-//     truckBooking._id
-//   );
-
-//   // 📩 Send cancellation push message
-//   await sendTruckCancellationNotification(
-//     truckBooking.createdBy || truckBooking.contactNumber,
-//     truckBooking?.truckId?.registrationNumber || " ",
-//     truckBooking?.truckId?.type,
-//     queuePosition?.toString(),
-//     truckBooking?.truckBookingId,
-//     truckBooking?.date?.toISOString()
-//   );
-//           }
-//         }
-//         break;
-
-//       default:
-//         return sendResponse(res, 400, "Invalid trip booking status", {
-//           cancelled: false,
-//         });
-//     }
-
-//     // ✅ Save trip booking changes
-//     await tripBooking.save();
-
-
-
-
-
-//     return sendResponse(res, 200, "Trip booking cancelled successfully", {
-//       booking: tripBooking,
-//       bookingStatus: tripBooking.status,
-//       cancelled: true,
-//     });
-
-
-//   } catch (error) {
-//     console.error("❌ Trip booking cancellation failed:", error);
-//     return sendResponse(res, 400, "Trip booking cancellation failed", {
-//       cancelled: false,
-//     });
-//   }
-// };
-
 
 
 async function handleAllocationCancellation(allocation, phoneNumber, remarks, session) {
@@ -610,7 +423,7 @@ export const cancelTripBooking = async (req, res, next) => {
           allocation.remarks = remarks;
           await allocation.save({ session });
 
-          const truckBooking = await TruckBooking.findById(allocation.truckBookingId)
+          let truckBooking = await TruckBooking.findById(allocation.truckBookingId)
             .populate("truckId")
             .session(session);
 
@@ -657,8 +470,17 @@ export const cancelTripBooking = async (req, res, next) => {
       );
     }
 
+    let booking  = notifyData?.truckBooking || {}
+        const truckExist = await Truck.findById(booking?.truckId);
+    if (!truckExist) {
+      return sendResponse(res, 404, "Truck not found", {
+        bookingStatus: false,
+      });
+    }
+
             if(process.env.AutoAllocation == "true"){
-              setImmediate(() => allocateTruckAndTrip({ truckBooking: notifyData?.truckBooking }));
+              booking.type = truckExist.type;
+              setImmediate(() => allocateTruckAndTrip({ truckBooking:booking }));
             }
 
     return sendResponse(res, 200, "Trip booking cancelled successfully", {

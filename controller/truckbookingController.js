@@ -67,7 +67,7 @@ export const createTruckBooking = async (req, res, next) => {
     }
 
     // Create truck booking
-    const booking = await TruckBooking.create({
+    let booking = await TruckBooking.create({
       companyId,
       truckId,
       date: date ? new Date(date) : new Date(),
@@ -79,6 +79,7 @@ export const createTruckBooking = async (req, res, next) => {
       createdBy: phoneNumber,
     });
 
+    console.log(booking)
     const inQueueBookings = await TruckBooking.aggregate([
       {
         $match: { status: STATUS.INQUEUE },
