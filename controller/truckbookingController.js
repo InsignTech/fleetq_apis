@@ -107,7 +107,7 @@ export const createTruckBooking = async (req, res, next) => {
     sendResponse(res, 201, "Truck booking created successfully", {
       bookingStatus: true,
       position: position,
-      bookingId: booking.truckBookingId,
+      truckBookingId: booking.truckBookingId,
       bookingTime: formatDateTime(booking.date),
     });
 
