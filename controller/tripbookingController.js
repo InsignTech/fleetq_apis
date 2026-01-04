@@ -13,6 +13,7 @@ import { formatDateTime } from "../utils/formatDateTime.js";
 import Allocation from "../models/allocationSchema.js";
 import TruckBooking from "../models/truckBookingSchema.js";
 import { getTruckQueuePosition } from "./truckbookingController.js";
+import Truck from "../models/truckSchema.js";
 
 
 
