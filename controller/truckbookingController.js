@@ -731,6 +731,14 @@ export const cancelTruckBooking = async (req, res, next) => {
           tripBooking.status = STATUS.INQUEUE;
           await tripBooking.save();
         }
+           if (tripBooking) {
+              await sendTripCancellationNotification(
+                tripBooking.destination,
+                tripBooking.type,
+                 tripBooking.tripBookingId,
+                  tripBooking.createdBy
+              );
+            }
         break;
 
       default:

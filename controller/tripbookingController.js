@@ -8,7 +8,7 @@ import { getCompanyByPhoneNumber } from "./userController.js";
 import { allocateTruckAndTrip } from "./allocationController.js";
 import axios from "axios";
 import { sendTripBookingConfirmationPush, sendTruckCancellationNotification } from "../flows/buildAllocationPayload.js";
-import { formatDateTime } from "../utils/formatDateTime.js";
+import { formatDateTime, formatDateTime24 } from "../utils/formatDateTime.js";
 
 import Allocation from "../models/allocationSchema.js";
 import TruckBooking from "../models/truckBookingSchema.js";
@@ -467,7 +467,7 @@ export const cancelTripBooking = async (req, res, next) => {
         notifyData.truckBooking?.truckId?.type,
         notifyData.queuePosition?.toString(),
         notifyData.truckBooking?.truckBookingId,
-        notifyData.truckBooking?.date?.toISOString()
+        formatDateTime24(notifyData.truckBooking?.date)
       );
     }
 

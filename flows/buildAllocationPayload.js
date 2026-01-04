@@ -380,7 +380,7 @@ export async function sendTripAllocationNotification(
               { type: "text", text: contactPhone },           // {{7}}
             ],
           },
-        
+
           {
             index: 0,
             parameters: [
@@ -425,6 +425,53 @@ export async function sendTripAllocationNotification(
     } else {
       console.error("🔹 Error Message:", error.message);
     }
+  }
+}
+
+export async function sendTripCancellationNotification(
+  destination,
+  type,
+  tripBookingId,
+  phoneNumber
+) {
+  try {
+    const payload = {
+      payload: {
+        name: "trip_allotment_cancellation_message",
+        components: [
+          {
+            type: "body",
+            parameters: [
+              { type: "text", text: destination },
+              { type: "text", text: String(type) },
+              { type: "text", text: String(tripBookingId) },
+            ],
+          },
+        ],
+        language: {
+          code: "en_US",
+          policy: "deterministic",
+        },
+        namespace: "29f53ec4_c8e3_4988_83fc_312d87b4bf8f",
+      },
+      phoneNumber: phoneNumber,
+    };
+
+    const response = await axios.post(apiUrl, payload, {
+      headers: {
+        Authorization: `Basic ${WHATSAPP_AUTH}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log("✅ Trip cancellation notification sent:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error(
+      "❌ Failed to send trip cancellation notification:",
+      error.response?.data || error.message
+    );
+    throw error;
   }
 }
 
