@@ -448,9 +448,9 @@ export const paymentSuccess = async (req, res, next) => {
     allocation.status = STATUS.ALLOCATED;
     allocation.save();
     // 4. Fetch truck and trip details
-    const truckBooking = await TruckBooking.findById(truckBookingId).populate(
-      "truckId"
-    );
+    const truckBooking = await TruckBooking.findById(truckBookingId)
+      .populate("truckId")
+      .populate({ path: "companyId", select: "name" });
     const tripBooking = await TripBooking.findById(tripBookingId);
 
     if (!truckBooking || !tripBooking) {
@@ -483,7 +483,7 @@ export const paymentSuccess = async (req, res, next) => {
     await sendTripAllocationNotification(
       tripBooking.destination || "",
       String(tripBooking.rate || 0),
-      truckBooking.createdBy || "",
+      truckBooking?.companyId?.name || truckBooking.createdBy || "",
       truckBooking?.truckId?.registrationNumber || " ",
       truckBooking?.truckId?.type || " ",
       truckBooking.contactName || "",
