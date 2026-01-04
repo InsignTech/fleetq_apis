@@ -9,6 +9,7 @@ import { buildTruckBookingListPayload } from "../flows/buildTruckBookingListPayl
 import {
   buildTripAllocationPayload,
   buildTruckAllocationPayload,
+  sendTripCancellationNotification,
 } from "../flows/buildAllocationPayload.js";
 import { getCompanyByPhoneNumber } from "./userController.js";
 import Allocation from "../models/allocationSchema.js";
